@@ -23,6 +23,7 @@
   - [Contributing 🤝](#contributing-)
   - [License 📄](#license-)
   - [Acknowledgments 🙏](#acknowledgments-)
+- [Screenshot](#screenshot)
 
 ---
 
@@ -219,3 +220,9 @@ This project is provided as a fan project and is not officially affiliated with 
 ---
 
 Enjoy Factorio and happy downloading! 🎉
+
+---
+
+# Screenshot
+
+![FacDL Screenshot](factoriodownloader.png "Factorio Downloader Screenshot")
