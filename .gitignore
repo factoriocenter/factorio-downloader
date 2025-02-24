@@ -1,0 +1,35 @@
+# ------------------------------------------------------------------
+# PHP Project .gitignore
+# ------------------------------------------------------------------
+
+# 1) Log files and caches
+*.log
+*.cache
+*.tmp
+*.lock
+
+# 2) Common development directories
+node_modules/
+vendor/
+
+# 3) IDE and editor settings
+.idea/
+.vscode/
+
+# 4) System files
+.DS_Store
+Thumbs.db
+
+# 5) Environment variables file (if used)
+.env
+
+# 6) Automatically downloaded certificate bundle (cacert.pem)
+cacert.pem
+
+# 7) Temporary and uploads folders
+uploads/
+tmp/
+
+# ------------------------------------------------------------------
+# End of .gitignore
+# ------------------------------------------------------------------

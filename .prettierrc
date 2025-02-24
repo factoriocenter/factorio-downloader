@@ -1,0 +1,6 @@
+{
+  "tabWidth": 2,
+  "useTabs": true,
+  "parser": "php",
+  "plugins": ["@prettier/plugin-php"]
+}
