@@ -30,7 +30,7 @@
 ## Features ✨
 
 - **Version Filtering:**  
-  Displays a complete, ordered list of Factorio versions (from **2.0.35** down to **0.6.4**) as defined in the configuration. When you select a version, the site dynamically shows only the relevant download sections.
+  Displays a complete, ordered list of Factorio versions (from **Latest Version** down to **0.6.4**) as defined in the configuration. When you select a version, the site dynamically shows only the relevant download sections.
 
 - **Multiple Download Categories:**  
   - **Full Game:** Download the complete version of Factorio.
