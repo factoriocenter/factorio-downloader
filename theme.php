@@ -27,11 +27,11 @@ if (empty($selectedVersion)) {
     $showServer   = true;
     $showSpaceAge = true;
 } else {
-    // Verifica se a versão está presente nas listas de cada categoria
-    $showFactorio = in_array($selectedVersion, $validFactorioVersions);
-    $showDemo     = in_array($selectedVersion, $validDemoVersions);
-    $showServer   = in_array($selectedVersion, $validServerVersions);
-    $showSpaceAge = in_array($selectedVersion, $validSpaceAgeVersions);
+    // Agora consideramos também as versões experimentais
+    $showFactorio = in_array($selectedVersion, $validFactorioVersions) || in_array($selectedVersion, $experimentalFactorioVersions);
+    $showDemo     = in_array($selectedVersion, $validDemoVersions)     || in_array($selectedVersion, $experimentalDemoVersions);
+    $showServer   = in_array($selectedVersion, $validServerVersions)   || in_array($selectedVersion, $experimentalServerVersions);
+    $showSpaceAge = in_array($selectedVersion, $validSpaceAgeVersions) || in_array($selectedVersion, $experimentalSpaceAgeVersions);
 
     $currentFactorioVersion = $showFactorio ? $selectedVersion : $defaultFactorioVersion;
     $currentDemoVersion     = $showDemo     ? $selectedVersion : $defaultDemoVersion;
