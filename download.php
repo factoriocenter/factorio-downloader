@@ -89,10 +89,18 @@ if (empty($token) && in_array($build, ['alpha', 'expansion'])) {
     if (empty($password)) {
         die("No password defined for $login.");
     }
-    // Attempt to authenticate with Factorio’s API
-    $authUrl = "https://auth.factorio.com/api-login?require_game_ownership=true&username=" .
-               urlencode($login) . "&password=" . urlencode($password);
+    // Authenticate with Factorio's Web authentication API. Per the official docs,
+    // credentials go in the POST body (application/x-www-form-urlencoded), not the
+    // URL query string.
+    $authUrl = "https://auth.factorio.com/api-login";
     $ch = curl_init($authUrl);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
+        'username'               => $login,
+        'password'               => $password,
+        'require_game_ownership' => 'true',
+        'api_version'            => '2',
+    ]));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $authResponse = curl_exec($ch);
     if (curl_errno($ch)) {
@@ -102,17 +110,19 @@ if (empty($token) && in_array($build, ['alpha', 'expansion'])) {
 
     // Parse response
     $authData = json_decode($authResponse, true);
-    if (!$authData) {
+    if (!is_array($authData)) {
         die("Authentication error: unable to parse auth response.");
     }
     // Check if there's an error (e.g., invalid credentials or game not owned)
     if (isset($authData['error'])) {
-        die("Authentication failed: " . $authData['error']);
+        die("Authentication failed: " . ($authData['message'] ?? $authData['error']));
     }
-    // Assume token is the first value in the returned JSON
-    foreach ($authData as $value) {
-        $token = $value;
-        break;
+    // Token is returned either as {"token": "..."} (api_version >= 2) or as a
+    // single-element array ["..."] (api_version <= 1).
+    if (isset($authData['token']) && is_string($authData['token'])) {
+        $token = $authData['token'];
+    } elseif (isset($authData[0]) && is_string($authData[0])) {
+        $token = $authData[0];
     }
     if (empty($token)) {
         die("Failed to obtain token for $login.");

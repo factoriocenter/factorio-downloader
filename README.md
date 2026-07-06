@@ -140,48 +140,40 @@ project) — no `jq` or platform-specific tweaks. You can also pre-set the
 
 ### Alternative: raw cURL
 
-If you prefer, you can call the API directly with cURL on any platform.
+Per the official [Web authentication API](https://wiki.factorio.com/Web_authentication_API),
+credentials must be sent in the **POST body** (`application/x-www-form-urlencoded`),
+**not** as URL query-string parameters. The single command below works the same in a
+Linux/macOS shell, Windows CMD, and PowerShell (it uses the real `curl`; `--data-urlencode`
+handles encoding, so no `jq` is needed). Replace `YOUR_LOGIN` and `YOUR_PASSWORD`:
 
-### On Linux and macOS
+```sh
+curl -X POST "https://auth.factorio.com/api-login" --data-urlencode "username=YOUR_LOGIN" --data-urlencode "password=YOUR_PASSWORD" --data-urlencode "require_game_ownership=true" --data-urlencode "api_version=2"
+```
 
-1. Open your terminal.
-2. Run the following command (replace `YOUR_LOGIN` and `YOUR_PASSWORD` with your actual credentials):
+On success you get a JSON object with the token:
 
-   ```sh
-   curl -XPOST "https://auth.factorio.com/api-login?require_game_ownership=true&username=$(printf '%s' "YOUR_LOGIN" | jq -s -R -r @uri)&password=$(printf '%s' "YOUR_PASSWORD" | jq -s -R -r @uri)"
-   ```
+```json
+{ "token": "8me7gpab3nrqt5fahf7b363qa65uh7", "username": "your_login" }
+```
 
-3. If the credentials are correct and your account owns the game (and the Space Age DLC for expansion), you will receive a JSON response containing a token, for example:
+(Omit `api_version=2` and the response is instead an array: `["8me7gpab3nrqt5fahf7b363qa65uh7"]`.)
 
-   ```json
-   [
-     "8me7gpab3nrqt5fahf7b363qa65uh7"
-   ]
-   ```
+Copy the token and add it to your `.env` file:
 
-4. Copy that token and add it to your `.env` file as `FACTORIO_TOKEN_FALLBACK`:
+```dotenv
+FACTORIO_TOKEN_FALLBACK=8me7gpab3nrqt5fahf7b363qa65uh7
+```
 
-   ```dotenv
-   FACTORIO_TOKEN_FALLBACK=8me7gpab3nrqt5fahf7b363qa65uh7
-   ```
-
-### On Windows
-
-1. Open Command Prompt or PowerShell.
-2. In PowerShell, run the following commands (replace `YOUR_LOGIN` and `YOUR_PASSWORD` with your credentials):
-
-   ```powershell
-   $username = [System.Web.HttpUtility]::UrlEncode("YOUR_LOGIN")
-   $password = [System.Web.HttpUtility]::UrlEncode("YOUR_PASSWORD")
-   curl -Method Post "https://auth.factorio.com/api-login?require_game_ownership=true&username=$username&password=$password"
-   ```
-
-3. The output should be a JSON response containing your token (as shown above). Copy this token and add it to your `.env` file as `FACTORIO_TOKEN_FALLBACK`.
+> **Note (PowerShell):** in older Windows PowerShell, `curl` is an alias for
+> `Invoke-WebRequest` and does **not** accept `--data-urlencode` (you may see
+> `built-in manual was disabled at build-time` or similar). Use `curl.exe` explicitly,
+> run it from CMD, or just use the `php scripts/get-token.php` helper above.
 
 > **Note:**  
 >
 > - Your account must own the base game (and the Space Age DLC, if required) for the token to be issued.  
-> - Tokens may expire over time, so if downloads start failing, you might need to re-run the curl command to obtain a new token.
+> - Some accounts require an e-mail authentication code on login; resend it via the `email_authentication_code` field (the helper script prompts for it automatically).
+> - Tokens may expire over time, so if downloads start failing, request a new one.
 
 ---
 

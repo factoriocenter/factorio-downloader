@@ -19,7 +19,7 @@
  * Requirements: PHP CLI with the cURL extension (already required by this project).
  */
 
-const AUTH_URL = 'https://auth.factorio.com/api-login?require_game_ownership=true';
+const AUTH_URL = 'https://auth.factorio.com/api-login';
 
 if (!extension_loaded('curl')) {
     fwrite(STDERR, "The PHP cURL extension is required.\n");
@@ -75,17 +75,28 @@ function prompt_hidden(string $label): string
 // ---------------------------------------------------------------------------
 // HTTP
 // ---------------------------------------------------------------------------
-/** @return array{0: string|false, 1: int, 2: string} [body, curl_errno, curl_error] */
-function auth_request(string $login, string $password, ?string $caInfo): array
+/**
+ * Per the official Web authentication API, credentials are sent in the POST body
+ * as application/x-www-form-urlencoded (not as URL query parameters).
+ *
+ * @return array{0: string|false, 1: int, 2: string} [body, curl_errno, curl_error]
+ */
+function auth_request(string $login, string $password, ?string $caInfo, ?string $emailCode = null): array
 {
-    $url = AUTH_URL
-        . '&username=' . rawurlencode($login)
-        . '&password=' . rawurlencode($password);
+    $fields = [
+        'username'               => $login,
+        'password'               => $password,
+        'require_game_ownership' => 'true',
+        'api_version'            => '2',
+    ];
+    if ($emailCode !== null && $emailCode !== '') {
+        $fields['email_authentication_code'] = $emailCode;
+    }
 
-    $ch = curl_init($url);
+    $ch = curl_init(AUTH_URL);
     curl_setopt_array($ch, [
         CURLOPT_POST           => true,
-        CURLOPT_POSTFIELDS     => '',
+        CURLOPT_POSTFIELDS     => http_build_query($fields), // sets urlencoded body
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => 30,
         CURLOPT_USERAGENT      => 'factorio-downloader-get-token/1.0',
@@ -99,6 +110,32 @@ function auth_request(string $login, string $password, ?string $caInfo): array
     curl_close($ch);
 
     return [$body, $errno, $error];
+}
+
+/** Extract the token from either response shape (array v1, or object v2+). */
+function extract_token($data): ?string
+{
+    if (is_array($data)) {
+        if (isset($data['token']) && is_string($data['token'])) {
+            return $data['token'];               // api_version >= 2
+        }
+        if (isset($data[0]) && is_string($data[0])) {
+            return $data[0];                     // api_version <= 1
+        }
+    }
+    return null;
+}
+
+/** True when the API says an email authentication code is required. */
+function needs_email_code($data): bool
+{
+    if (!is_array($data)) {
+        return false;
+    }
+    $error = strtolower((string) ($data['error'] ?? ''));
+    $message = strtolower((string) ($data['message'] ?? ''));
+    return str_contains($error, 'email') && str_contains($error, 'authentication')
+        || (str_contains($message, 'email') && str_contains($message, 'code'));
 }
 
 /**
@@ -181,15 +218,28 @@ if ($errno !== 0 || $body === false) {
 
 $data = json_decode($body, true);
 
+// Some accounts require a one-time code e-mailed on login. Prompt for it and retry.
+if (needs_email_code($data)) {
+    fwrite(STDOUT, "\nFactorio e-mailed you an authentication code.\n");
+    $code = prompt('Enter the e-mail authentication code: ');
+    if ($code !== '') {
+        [$body, $errno, $error] = auth_request($login, $password, $ca ?? null, $code);
+        if ($errno !== 0 || $body === false) {
+            fwrite(STDERR, "Request failed: " . ($error !== '' ? $error : 'unknown error') . "\n");
+            exit(1);
+        }
+        $data = json_decode($body, true);
+    }
+}
+
 // API errors come back as an object with error/message fields.
-if (is_array($data) && (isset($data['error']) || isset($data['message']))) {
+if (is_array($data) && (isset($data['error']) || isset($data['message'])) && extract_token($data) === null) {
     $msg = $data['message'] ?? $data['error'] ?? 'authentication failed';
     fwrite(STDERR, "Factorio API: $msg\n");
     exit(1);
 }
 
-// Success is a JSON array whose first element is the token.
-$token = (is_array($data) && isset($data[0]) && is_string($data[0])) ? $data[0] : null;
+$token = extract_token($data);
 if ($token === null || $token === '') {
     fwrite(STDERR, "Unexpected response: $body\n");
     exit(1);
