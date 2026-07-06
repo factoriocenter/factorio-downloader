@@ -15,7 +15,8 @@
  * Requirements:
  *  - config.php must be properly configured (using Dotenv, etc.).
  *  - The cURL extension must be enabled.
- *  - cacert.pem is downloaded/stored in a writable directory (e.g. ./certs).
+ *  - TLS verification uses the system's CA trust store (or FACTORIO_CA_BUNDLE,
+ *    see lib/factorio-auth.php); no CA bundle is ever downloaded at runtime.
  */
 
 // Display errors for debugging (remove in production)
@@ -78,6 +79,8 @@ if (!in_array($target, $validTargets)) {
 $login    = $FACTORIO_LOGIN;
 $password = $FACTORIO_PASSWORD;
 
+require_once __DIR__ . '/lib/factorio-auth.php';
+
 // Attempt to read fallback token from environment
 $fallbackToken = $_ENV['FACTORIO_TOKEN_FALLBACK'] ?? '';
 
@@ -90,8 +93,7 @@ if (empty($token) && in_array($build, ['alpha', 'expansion'])) {
         die("No password defined for $login.");
     }
     // Authenticate through the shared helper (POST body, api_version=2, handles
-    // the CA-bundle fallback and both response shapes).
-    require_once __DIR__ . '/lib/factorio-auth.php';
+    // the CA-bundle resolution and both response shapes).
     $authError = null;
     $token = factorio_auth_login($login, $password, null, null, $authError);
     if (empty($token)) {
@@ -106,43 +108,34 @@ if (!empty($token)) {
     $factorioUrl .= "?username=" . urlencode($login) . "&token=" . urlencode($token);
 }
 
-// --- 4. Prepare cacert.pem in a writable directory
-$certDir = __DIR__ . '/certs';
-if (!is_dir($certDir)) {
-    mkdir($certDir, 0755, true);
-}
-$caBundle = $certDir . '/cacert.pem';
-if (!file_exists($caBundle)) {
-    $cacertUrl = 'https://curl.se/ca/cacert.pem';
-    $cacertData = file_get_contents($cacertUrl);
-    if ($cacertData !== false) {
-        file_put_contents($caBundle, $cacertData);
-    } else {
-        error_log("Could not download cacert.pem; SSL verification may fail.");
-        $caBundle = false;
-    }
-}
-
-// --- 5. Get the Effective URL ---
+// --- 4. Get the Effective URL ---
+// TLS verification is never disabled: with no explicit CA bundle, cURL/PHP's own
+// system trust store is used (same safe resolution as lib/factorio-auth.php).
+// This request may carry the account token in $factorioUrl, so verification must
+// stay on to prevent an on-path attacker from capturing it.
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $factorioUrl);
 curl_setopt($ch, CURLOPT_NOBODY, true);
 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-// Optional: set a custom User-Agent
-curl_setopt($ch, CURLOPT_USERAGENT, "FactorioDownloader/1.0 (Docker)");
+curl_setopt($ch, CURLOPT_USERAGENT, "FactorioDownloader/1.0");
 
-if ($caBundle !== false) {
+$caBundle = factorio_auth_ca_bundle(null);
+if ($caBundle !== null) {
     curl_setopt($ch, CURLOPT_CAINFO, $caBundle);
-} else {
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 }
 
 curl_exec($ch);
 $effectiveUrl = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
 
 if (curl_errno($ch)) {
-    die("Error obtaining effective URL: " . curl_error($ch));
+    $errno = curl_errno($ch);
+    $isCertIssue = $errno === CURLE_SSL_CACERT || $errno === CURLE_SSL_CACERT_BADFILE || $errno === CURLE_SSL_CERTPROBLEM;
+    $msg = $isCertIssue
+        ? "TLS certificate verification failed. Point FACTORIO_CA_BUNDLE at a trusted cacert.pem, or fix curl.cainfo in php.ini."
+        : curl_error($ch);
+    curl_close($ch);
+    die("Error obtaining effective URL: " . htmlspecialchars($msg, ENT_QUOTES));
 }
 curl_close($ch);
 
@@ -154,6 +147,6 @@ if (!$effectiveUrl) {
 // echo "Effective URL: " . htmlspecialchars($effectiveUrl);
 // exit;
 
-// --- 6. Redirect the Browser ---
+// --- 5. Redirect the Browser ---
 header("Location: " . $effectiveUrl);
 exit;

@@ -11,6 +11,10 @@
  * Security model:
  *  - One-time only: if .env already exists (non-empty), it responds 403 and
  *    never renders the form. Delete .env to run it again.
+ *  - The whole "still unconfigured? authenticate -> write .env" sequence runs
+ *    under an exclusive file lock (.setup.lock), so two concurrent submissions
+ *    can never both pass the check before either one writes — the lock, not a
+ *    plain check-then-write, is what makes "one-time" atomic.
  *  - HTTPS required (localhost exempt) so credentials are never sent in clear.
  *  - CSRF token per session; POST is rejected without a matching token.
  *  - Simple per-session attempt throttle.
@@ -40,6 +44,7 @@ header(
 require_once __DIR__ . '/lib/factorio-auth.php';
 
 const ENV_PATH  = __DIR__ . '/.env';
+const LOCK_PATH = __DIR__ . '/.setup.lock';
 const MAX_TRIES = 8;
 
 function h(?string $s): string
@@ -118,50 +123,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (!$secure) {
         $errors[] = 'Refusing to send credentials over an insecure (non-HTTPS) connection. '
                   . 'Enable HTTPS/SSL for this site and try again.';
-    } elseif (env_exists()) { // race guard
-        http_response_code(403);
-        render_page('locked');
-        exit;
     } else {
-        $password  = (string) ($_POST['password'] ?? '');
-        $emailCode = trim((string) ($_POST['email_code'] ?? ''));
-
-        if ($loginValue === '' || $password === '') {
-            $errors[] = 'Login and password are required.';
-        } elseif (preg_match('/[\r\n]/', $loginValue) || preg_match('/[\r\n]/', $password)) {
-            $errors[] = 'Login or password contains invalid characters.';
+        // Exclusive lock spanning the whole check -> authenticate -> write
+        // sequence. Without this, two concurrent submissions could both pass
+        // env_exists() before either finished the (slow) authentication call,
+        // letting a second submitter's credentials silently overwrite the
+        // first's .env. The lock is released automatically when the request
+        // ends (PHP/the OS close the file descriptor), so no explicit unlock
+        // is required on the exit() paths below.
+        $lockFp = @fopen(LOCK_PATH, 'c');
+        if ($lockFp === false || !flock($lockFp, LOCK_EX)) {
+            $errors[] = 'Could not acquire the setup lock. Please try again in a moment.';
+        } elseif (env_exists()) { // authoritative, now race-free
+            http_response_code(403);
+            render_page('locked');
+            exit;
         } else {
-            $error = null;
-            $needCode = false;
-            $token = factorio_auth_login(
-                $loginValue,
-                $password,
-                $emailCode !== '' ? $emailCode : null,
-                null,
-                $error,
-                $needCode
-            );
+            $password  = (string) ($_POST['password'] ?? '');
+            $emailCode = trim((string) ($_POST['email_code'] ?? ''));
 
-            if ($token === null && $needCode) {
-                $needsEmailCode = true;
-                $errors[] = 'Factorio e-mailed you an authentication code. Enter it below to finish.';
-            } elseif ($token === null) {
-                $errors[] = $error ?? 'Authentication failed.';
+            if ($loginValue === '' || $password === '') {
+                $errors[] = 'Login and password are required.';
+            } elseif (preg_match('/[\r\n]/', $loginValue) || preg_match('/[\r\n]/', $password)) {
+                $errors[] = 'Login or password contains invalid characters.';
             } else {
-                $content = "FACTORIO_LOGIN=" . $loginValue . "\n"
-                         . "FACTORIO_PASSWORD=" . $password . "\n"
-                         . "FACTORIO_TOKEN_FALLBACK=" . $token . "\n";
-                $written = @file_put_contents(ENV_PATH, $content, LOCK_EX);
-                if ($written === false) {
-                    $errors[] = 'Could not write the .env file. The web server needs write '
-                              . 'permission to the application directory. Create .env manually instead.';
+                $error = null;
+                $needCode = false;
+                $token = factorio_auth_login(
+                    $loginValue,
+                    $password,
+                    $emailCode !== '' ? $emailCode : null,
+                    null,
+                    $error,
+                    $needCode
+                );
+
+                if ($token === null && $needCode) {
+                    $needsEmailCode = true;
+                    $errors[] = 'Factorio e-mailed you an authentication code. Enter it below to finish.';
+                } elseif ($token === null) {
+                    $errors[] = $error ?? 'Authentication failed.';
                 } else {
-                    @chmod(ENV_PATH, 0600);
-                    unset($_SESSION['setup_csrf']); // burn the token
-                    render_page('success');
-                    exit;
+                    $content = "FACTORIO_LOGIN=" . $loginValue . "\n"
+                             . "FACTORIO_PASSWORD=" . $password . "\n"
+                             . "FACTORIO_TOKEN_FALLBACK=" . $token . "\n";
+                    $written = @file_put_contents(ENV_PATH, $content, LOCK_EX);
+                    if ($written === false) {
+                        $errors[] = 'Could not write the .env file. The web server needs write '
+                                  . 'permission to the application directory. Create .env manually instead.';
+                    } else {
+                        @chmod(ENV_PATH, 0600);
+                        @unlink(LOCK_PATH); // best-effort cleanup; a stale empty lock file is harmless
+                        unset($_SESSION['setup_csrf']); // burn the token
+                        render_page('success');
+                        exit;
+                    }
                 }
             }
+            flock($lockFp, LOCK_UN);
+            fclose($lockFp);
         }
     }
 }
