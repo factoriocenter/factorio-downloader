@@ -1,0 +1,15 @@
+---
+# cPanel Git Version Control deployment.
+#
+# When you click "Deploy HEAD Commit" in cPanel, these tasks copy the repository
+# files into the live site directory. It intentionally does NOT run composer:
+# config.php works without vendor/, so there is nothing to build.
+#
+# It preserves your existing .env (credentials) and leaves vendor/ and certs/
+# untouched, only overwriting the application code.
+#
+# Adjust DEPLOYPATH if your site lives somewhere other than public_html/facdl.
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/ggames/public_html/facdl/
+    - /usr/bin/rsync -a --exclude='.git' --exclude='.git*' --exclude='.env' --exclude='vendor' --exclude='certs' --exclude='docs' ./ "$DEPLOYPATH"
