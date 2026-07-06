@@ -106,16 +106,14 @@ if ($login === '' || $password === '') {
     exit(1);
 }
 
-$certDir = dirname(__DIR__) . '/certs';
-
 fwrite(STDOUT, "Requesting token...\n");
-$token = factorio_auth_login($login, $password, null, $certDir, $error, $needsEmailCode);
+$token = factorio_auth_login($login, $password, null, null, $error, $needsEmailCode);
 
 if ($token === null && $needsEmailCode) {
     fwrite(STDOUT, "\nFactorio e-mailed you an authentication code.\n");
     $code = prompt('Enter the e-mail authentication code: ');
     if ($code !== '') {
-        $token = factorio_auth_login($login, $password, $code, $certDir, $error, $needsEmailCode);
+        $token = factorio_auth_login($login, $password, $code, null, $error, $needsEmailCode);
     }
 }
 

@@ -267,6 +267,13 @@ FACTORIO_TOKEN_FALLBACK=your_fallback_token
 
 These credentials (and the fallback token) are used to authenticate with Factorio’s API. **Downloads will only proceed if your account owns the game (and the Space Age DLC, when applicable).**
 
+> **TLS note:** authentication verifies the Factorio server's certificate against the
+> system trust store (no CA bundle is ever downloaded at runtime). On most hosts this
+> works out of the box. If your PHP has a broken `curl.cainfo` (common on some local
+> Windows setups) and you see a "TLS certificate verification failed" message, point the
+> optional `FACTORIO_CA_BUNDLE` environment variable at a trusted `cacert.pem`, or fix
+> `curl.cainfo` in `php.ini`.
+
 ### Web setup (create `.env` from the browser)
 
 Instead of creating `.env` by hand, you can use the bundled **one-time web installer**.

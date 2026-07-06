@@ -17,31 +17,27 @@ if (!defined('FACTORIO_AUTH_URL')) {
     define('FACTORIO_AUTH_URL', 'https://auth.factorio.com/api-login');
 }
 
-if (!function_exists('factorio_auth_ca_bootstrap')) {
+if (!function_exists('factorio_auth_ca_bundle')) {
     /**
-     * Fetch a known-good CA bundle when the host's bundle is missing/broken. Only
-     * this download skips verification (it is a public file); it is then used to
-     * verify the real credential-bearing request.
+     * Resolve a CA bundle to verify TLS with. In order of preference:
+     *   1. an explicit, operator-provided path ($explicit),
+     *   2. the FACTORIO_CA_BUNDLE environment variable,
+     *   3. null -> use PHP/OpenSSL's default trust store.
+     *
+     * We intentionally never download a CA bundle at runtime: fetching one over an
+     * unverified connection and then trusting it would defeat TLS verification and
+     * expose the credentials in transit on a MITM'd network.
      */
-    function factorio_auth_ca_bootstrap(string $certDir): ?string
+    function factorio_auth_ca_bundle(?string $explicit): ?string
     {
-        if (!is_dir($certDir) && !@mkdir($certDir, 0755, true) && !is_dir($certDir)) {
-            return null;
+        if ($explicit !== null && $explicit !== '' && is_file($explicit)) {
+            return $explicit;
         }
-        $ch = curl_init('https://curl.se/ca/cacert.pem');
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => 0,
-            CURLOPT_TIMEOUT        => 30,
-        ]);
-        $data = curl_exec($ch);
-        curl_close($ch);
-        if ($data === false || strlen($data) < 1000) {
-            return null;
+        $env = getenv('FACTORIO_CA_BUNDLE');
+        if ($env !== false && $env !== '' && is_file($env)) {
+            return $env;
         }
-        $path = $certDir . '/cacert.pem';
-        return file_put_contents($path, $data) !== false ? $path : null;
+        return null; // system default trust store
     }
 }
 
@@ -113,7 +109,8 @@ if (!function_exists('factorio_auth_login')) {
     /**
      * Authenticate and return a token, or null on failure.
      *
-     * @param string      $certDir        writable dir for a fallback CA bundle
+     * @param string|null $caBundle       optional trusted CA bundle path; when null,
+     *                                     FACTORIO_CA_BUNDLE or the system store is used
      * @param string|null $error          set to a human-readable message on failure
      * @param bool        $needsEmailCode set true when an e-mail code is required
      */
@@ -121,26 +118,25 @@ if (!function_exists('factorio_auth_login')) {
         string $login,
         string $password,
         ?string $emailCode,
-        string $certDir,
+        ?string $caBundle = null,
         &$error = null,
         &$needsEmailCode = false
     ): ?string {
         $error = null;
         $needsEmailCode = false;
 
-        [$body, $errno, $err] = _factorio_auth_request($login, $password, null, $emailCode);
-
-        // Retry once with a fresh CA bundle on a certificate problem.
-        if ($errno === CURLE_SSL_CACERT || $errno === CURLE_SSL_CACERT_BADFILE || $errno === CURLE_SSL_CERTPROBLEM) {
-            $ca = factorio_auth_ca_bootstrap($certDir);
-            if ($ca !== null) {
-                [$body, $errno, $err] = _factorio_auth_request($login, $password, $ca, $emailCode);
-            }
-        }
+        $caInfo = factorio_auth_ca_bundle($caBundle);
+        [$body, $errno, $err] = _factorio_auth_request($login, $password, $caInfo, $emailCode);
 
         if ($errno !== 0 || $body === false) {
-            $error = 'Connection to the authentication server failed'
-                   . ($err !== '' ? ": $err" : '.');
+            if ($errno === CURLE_SSL_CACERT || $errno === CURLE_SSL_CACERT_BADFILE || $errno === CURLE_SSL_CERTPROBLEM) {
+                $error = 'TLS certificate verification failed. The server\'s CA store looks '
+                       . 'broken; point FACTORIO_CA_BUNDLE at a trusted cacert.pem (or fix '
+                       . 'curl.cainfo in php.ini).';
+            } else {
+                $error = 'Connection to the authentication server failed'
+                       . ($err !== '' ? ": $err" : '.');
+            }
             return null;
         }
 

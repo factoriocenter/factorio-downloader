@@ -93,7 +93,7 @@ if (empty($token) && in_array($build, ['alpha', 'expansion'])) {
     // the CA-bundle fallback and both response shapes).
     require_once __DIR__ . '/lib/factorio-auth.php';
     $authError = null;
-    $token = factorio_auth_login($login, $password, null, __DIR__ . '/certs', $authError);
+    $token = factorio_auth_login($login, $password, null, null, $authError);
     if (empty($token)) {
         die("Authentication failed: " . htmlspecialchars($authError ?? "could not obtain a token for the account.", ENT_QUOTES));
     }

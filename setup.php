@@ -40,7 +40,6 @@ header(
 require_once __DIR__ . '/lib/factorio-auth.php';
 
 const ENV_PATH  = __DIR__ . '/.env';
-const CERT_DIR  = __DIR__ . '/certs';
 const MAX_TRIES = 8;
 
 function h(?string $s): string
@@ -138,7 +137,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $loginValue,
                 $password,
                 $emailCode !== '' ? $emailCode : null,
-                CERT_DIR,
+                null,
                 $error,
                 $needCode
             );
