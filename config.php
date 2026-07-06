@@ -18,188 +18,84 @@ $FACTORIO_PASSWORD = $_ENV['FACTORIO_PASSWORD'] ?? 'your_password';
 $FACTORIO_PD       = $_ENV['FACTORIO_PD'] ?? '';
 
 // ------------------------------------------------------------------
-// All Versions Array (Display order, descending)
+// Version data (auto-generated)
 // ------------------------------------------------------------------
-$versions = [
-    "2.1.9", "2.1.8", "2.1.7",
-    "2.0.77", "2.0.76", "2.0.75", "2.0.74", "2.0.73", "2.0.72", "2.0.71", "2.0.70", 
-    "2.0.69", "2.0.68", "2.0.67", "2.0.66", "2.0.65", "2.0.64", "2.0.63", "2.0.62", "2.0.61", "2.0.60",
-    "2.0.59", "2.0.58", "2.0.57", "2.0.56", "2.0.55", "2.0.54", "2.0.53", "2.0.52", "2.0.51", "2.0.50",
-    "2.0.49", "2.0.48", "2.0.47", "2.0.46", "2.0.45", "2.0.44", "2.0.43", "2.0.42", "2.0.41", "2.0.40", 
-    "2.0.39", "2.0.38", "2.0.37", "2.0.36", "2.0.35", "2.0.34", "2.0.33", "2.0.32", "2.0.31", "2.0.30", 
-    "2.0.29", "2.0.28", "2.0.27", "2.0.26", "2.0.25", "2.0.24", "2.0.23", "2.0.22", "2.0.21", "2.0.20", 
-    "2.0.19", "2.0.18", "2.0.17", "2.0.16", "2.0.15", "2.0.14", "2.0.13", "2.0.12", "2.0.11", "2.0.10", 
-    "2.0.9",  "2.0.8",  "2.0.7", 
-    "1.1.110", "1.1.109", "1.1.108", "1.1.107", "1.1.106", "1.1.105", "1.1.104",     "1.1.103", "1.1.102","1.1.101", "1.1.100", 
-    "1.1.99",  "1.1.98",  "1.1.97",  "1.1.96",  "1.1.95",  "1.1.94",  "1.1.93", "1.1.92",  "1.1.91",  "1.1.90", 
-    "1.1.89",  "1.1.88",  "1.1.87",  "1.1.86", 
-    "1.1.69",  "1.1.60", 
-    "1.1.59",  "1.1.58",  "1.1.57", 
-    "1.0.0", 
-    "0.17.79", 
-    "0.16.51", 
-    "0.15.40", 
-    "0.15.36", 
-    "0.14.23", 
-    "0.13.20", 
-    "0.12.35", 
-    "0.11.22", 
-    "0.10.12", 
-    "0.9.8",   
-    "0.8.8",   
-    "0.7.5",   
-    "0.6.4"
-];
+// The version lists below are NO LONGER edited by hand. They are loaded from
+// versions.json, which is kept up to date automatically by the daily GitHub
+// Action (.github/workflows/update-versions.yml -> scripts/update-versions.php).
+//
+// Structure of versions.json (one block per distro + a master display list):
+//   {
+//     "factorio": { "stable": [...], "experimental": [...] },  // build "alpha"
+//     "demo":     { "stable": [...], "experimental": [...] },  // build "demo"
+//     "server":   { "stable": [...], "experimental": [...] },  // build "headless"
+//     "spaceage": { "stable": [...], "experimental": [...] },  // build "expansion"
+//     "all":      ["2.1.9", ..., "0.6.4"]                      // descending
+//   }
+//
+// This file only READS that data and rebuilds the exact same variables the rest
+// of the site already relies on ($valid*/$experimental*/$versions/$default*), so
+// theme.php, site/* and download.php require no changes.
+
+$versionsFile = __DIR__ . '/versions.json';
+$versionsRaw  = @file_get_contents($versionsFile);
+if ($versionsRaw === false) {
+    die("config.php: could not read versions.json ($versionsFile). "
+      . "Run scripts/update-versions.php to generate it.");
+}
+$versionData = json_decode($versionsRaw, true);
+if (!is_array($versionData)) {
+    die("config.php: versions.json is missing or not valid JSON.");
+}
+
+// Small helpers scoped to the loader.
+if (!function_exists('factorio_versions_get')) {
+    // Safely read a distro/channel list from the decoded data.
+    function factorio_versions_get(array $data, string $distro, string $channel): array {
+        return isset($data[$distro][$channel]) && is_array($data[$distro][$channel])
+            ? array_values($data[$distro][$channel])
+            : [];
+    }
+}
+if (!function_exists('factorio_versions_latest_stable')) {
+    // Highest stable version for a distro (used as the default selection).
+    function factorio_versions_latest_stable(array $data, string $distro, string $fallback): string {
+        $stable = factorio_versions_get($data, $distro, 'stable');
+        if (empty($stable)) {
+            return $fallback;
+        }
+        usort($stable, 'version_compare');
+        return end($stable);
+    }
+}
+
+// Rebuild the per-distro arrays consumed by theme.php.
+$validFactorioVersions        = factorio_versions_get($versionData, 'factorio', 'stable');
+$experimentalFactorioVersions = factorio_versions_get($versionData, 'factorio', 'experimental');
+$validDemoVersions            = factorio_versions_get($versionData, 'demo', 'stable');
+$experimentalDemoVersions     = factorio_versions_get($versionData, 'demo', 'experimental');
+$validServerVersions          = factorio_versions_get($versionData, 'server', 'stable');
+$experimentalServerVersions   = factorio_versions_get($versionData, 'server', 'experimental');
+$validSpaceAgeVersions        = factorio_versions_get($versionData, 'spaceage', 'stable');
+$experimentalSpaceAgeVersions = factorio_versions_get($versionData, 'spaceage', 'experimental');
+
+// Master display list (descending). Start from "all" and union in every distro
+// list, so nothing can disappear from the page even if the data ever diverges.
+$versions = isset($versionData['all']) && is_array($versionData['all']) ? $versionData['all'] : [];
+$versions = array_merge(
+    $versions,
+    $validFactorioVersions, $experimentalFactorioVersions,
+    $validDemoVersions, $experimentalDemoVersions,
+    $validServerVersions, $experimentalServerVersions,
+    $validSpaceAgeVersions, $experimentalSpaceAgeVersions
+);
+$versions = array_values(array_unique($versions));
+usort($versions, fn($a, $b) => version_compare($b, $a)); // descending
 
 // ------------------------------------------------------------------
-// Factorio (Normal) Versions
+// Defaults for each category (highest stable release per distro)
 // ------------------------------------------------------------------
-$validFactorioVersions = [
-    "0.6.4", 
-    "0.7.5", 
-    "0.8.8", 
-    "0.9.8", 
-    "0.10.12", 
-    "0.11.22", 
-    "0.12.35", 
-    "0.13.20", 
-    "0.14.23", 
-    "0.15.36", 
-    "0.15.40", 
-    "0.16.51", 
-    "0.17.79", 
-    "1.0.0",
-    "1.1.57", "1.1.58", "1.1.59", 
-    "1.1.60", "1.1.69", 
-    "1.1.86", "1.1.87", "1.1.88", "1.1.89", 
-    "1.1.90", "1.1.91", "1.1.92", "1.1.93", "1.1.94", "1.1.95", "1.1.96", "1.1.97", "1.1.98", "1.1.99", 
-    "1.1.100", "1.1.101", "1.1.102", "1.1.103", "1.1.104", "1.1.105", "1.1.106", "1.1.107", "1.1.108", "1.1.109", 
-    "1.1.110",
-    "2.0.7", "2.0.8", "2.0.9", 
-    "2.0.10", "2.0.11", "2.0.12", "2.0.13", "2.0.14", "2.0.15", "2.0.16",
-    "2.0.17", "2.0.18", "2.0.19", 
-    "2.0.20", "2.0.21", "2.0.22", "2.0.23", "2.0.24", "2.0.25", "2.0.26", "2.0.27", "2.0.28", "2.0.29", 
-    "2.0.30", "2.0.31", "2.0.32", "2.0.33", "2.0.34", "2.0.35", "2.0.39", 
-    "2.0.41", "2.0.42", "2.0.43", "2.0.47",
-    "2.0.55", 
-    "2.0.60", "2.0.66", "2.0.69",
-    "2.0.72", "2.0.73", "2.0.76", "2.0.77"
-];
-$experimentalFactorioVersions = [
-    "1.1.86", "1.1.88", "1.1.89", 
-    "1.1.90", "1.1.92", "1.1.93", "1.1.95", "1.1.96", "1.1.97", "1.1.98", "1.1.99", 
-    "1.1.102", "1.1.103", "1.1.105", "1.1.106", "1.1.108",
-    "2.0.16", "2.0.17", "2.0.18", "2.0.19", 
-    "2.0.22", "2.0.24", "2.0.25", "2.0.26", "2.0.27", "2.0.29",
-    "2.0.31", "2.0.33", "2.0.34", "2.0.35", "2.0.36", "2.0.37", "2.0.38", 
-    "2.0.40", "2.0.44", "2.0.45", "2.0.46", "2.0.48", "2.0.49", 
-    "2.0.50", "2.0.51", "2.0.52", "2.0.53", "2.0.54", "2.0.56", "2.0.57", "2.0.58", "2.0.59", 
-    "2.0.61", "2.0.62", "2.0.63", "2.0.64", "2.0.65", "2.0.67", "2.0.68", 
-    "2.0.70", "2.0.71", "2.0.74", "2.0.75", 
-    "2.1.7", "2.1.8", "2.1.9"
-];
-
-// ------------------------------------------------------------------
-// Demo Versions
-// ------------------------------------------------------------------
-$validDemoVersions = [
-    "0.11.22", 
-    "0.12.35", 
-    "0.13.20", 
-    "0.14.23", 
-    "0.15.36", 
-    "0.16.51", 
-    "0.17.79", 
-    "1.0.0", 
-    "1.1.57",
-    "1.1.58", "1.1.59", 
-    "1.1.60", "1.1.69", 
-    "1.1.86", "1.1.87", "1.1.88", 
-    "1.1.90", "1.1.91", "1.1.92", "1.1.93", "1.1.94", "1.1.95", "1.1.96", "1.1.97", "1.1.98", "1.1.99", 
-    "1.1.100", "1.1.101", "1.1.102", "1.1.103", "1.1.104", "1.1.106", "1.1.107", "1.1.108", "1.1.109",
-    "1.1.110", 
-    "2.0.27", 
-    "2.0.42",
-    "2.0.66", "2.0.66",
-    "2.0.73", "2.0.76", "2.0.77"
-];
-$experimentalDemoVersions = [
-    "1.1.58", 
-    "1.1.60", 
-    "1.1.86", "1.1.88", 
-    "1.1.90", "1.1.92", "1.1.93", "1.1.95", "1.1.96", "1.1.97", "1.1.98", "1.1.99", 
-    "1.1.102", "1.1.103", "1.1.106",
-    "2.0.74"
-];
-
-// ------------------------------------------------------------------
-// Server (Headless) Versions
-// ------------------------------------------------------------------
-$validServerVersions = [
-    "0.12.35", 
-    "0.13.20", 
-    "0.14.23", 
-    "0.15.40", 
-    "0.16.51", 
-    "0.17.79", 
-    "1.0.0",
-    "1.1.57", "1.1.58", "1.1.59", 
-    "1.1.60",
-    "1.1.86", "1.1.87", "1.1.88", "1.1.89", 
-    "1.1.90", "1.1.91", "1.1.92", "1.1.93", "1.1.94", "1.1.95", "1.1.96", "1.1.97", "1.1.98", "1.1.99", 
-    "1.1.100", "1.1.101", "1.1.102", "1.1.103", "1.1.104", "1.1.105", "1.1.106", "1.1.107", "1.1.108", "1.1.109", 
-    "1.1.110",
-    "2.0.7", "2.0.8", "2.0.9", 
-    "2.0.10", "2.0.11", "2.0.12", "2.0.13", "2.0.14", "2.0.15", "2.0.16", "2.0.17", "2.0.18", "2.0.19", 
-    "2.0.20", "2.0.21", "2.0.22", "2.0.23", "2.0.24", "2.0.25", "2.0.26", "2.0.27", "2.0.28", "2.0.29", 
-    "2.0.30", "2.0.31", "2.0.32", "2.0.33", "2.0.34", "2.0.35", "2.0.39", 
-    "2.0.41", "2.0.42", "2.0.43", "2.0.47", 
-    "2.0.55", 
-    "2.0.60", "2.0.66", "2.0.69",
-    "2.0.72", "2.0.73", "2.0.76", "2.0.77"
-];
-$experimentalServerVersions = [
-    "1.1.86", "1.1.88", "1.1.89", 
-    "1.1.90", "1.1.92", "1.1.93", "1.1.95", "1.1.96", "1.1.97", "1.1.98",
-    "1.1.99", 
-    "1.1.102", "1.1.103", "1.1.105", "1.1.106", "1.1.108",
-    "2.0.16", "2.0.17", "2.0.18", "2.0.19", "2.0.22", "2.0.24", "2.0.25", "2.0.26", "2.0.27", "2.0.29", 
-    "2.0.31", "2.0.33", "2.0.34", "2.0.35", "2.0.36", "2.0.37", "2.0.38", 
-    "2.0.40", "2.0.44", "2.0.45", "2.0.46", "2.0.48", "2.0.49", 
-    "2.0.50", "2.0.51", "2.0.52", "2.0.53", "2.0.54", "2.0.56", "2.0.57", "2.0.58", "2.0.59",
-    "2.0.61", "2.0.62", "2.0.63", "2.0.64", "2.0.65", "2.0.67", "2.0.68", 
-    "2.0.70", "2.0.71", "2.0.74", "2.0.75", 
-    "2.1.7", "2.1.8", "2.1.9"
-];
-
-// ------------------------------------------------------------------
-// Space Age Versions
-// ------------------------------------------------------------------
-$validSpaceAgeVersions = [
-    "2.0.7", "2.0.8", "2.0.9", "2.0.10", 
-    "2.0.11", "2.0.12", "2.0.13", "2.0.14", "2.0.15", "2.0.16",
-    "2.0.17", "2.0.18", "2.0.19", 
-    "2.0.20", "2.0.21", "2.0.22", "2.0.23", "2.0.24", "2.0.25", "2.0.26", "2.0.27", "2.0.28", "2.0.29", 
-    "2.0.30", "2.0.31", "2.0.32", "2.0.33", "2.0.34", "2.0.35", "2.0.39", 
-    "2.0.41", "2.0.42", "2.0.43", "2.0.47", "2.0.55", 
-    "2.0.60", "2.0.66", "2.0.69",
-    "2.0.72", "2.0.73", "2.0.76", "2.0.77"
-];
-$experimentalSpaceAgeVersions = [
-    "2.0.16", "2.0.17", "2.0.18", "2.0.19", 
-    "2.0.22", "2.0.24", "2.0.25", "2.0.26", "2.0.27", "2.0.29", 
-    "2.0.31", "2.0.33", "2.0.34", "2.0.35", "2.0.36", "2.0.37", "2.0.38", 
-    "2.0.40", "2.0.44", "2.0.45", "2.0.46", "2.0.48", "2.0.49", 
-    "2.0.50", "2.0.51", "2.0.52", "2.0.53", "2.0.54", "2.0.56", "2.0.57", "2.0.58", "2.0.59",
-    "2.0.61", "2.0.62", "2.0.63", "2.0.64", "2.0.65", "2.0.67", "2.0.68", 
-    "2.0.70", "2.0.71", "2.0.74", "2.0.75", 
-    "2.1.7", "2.1.8", "2.1.9"
-];
-
-// ------------------------------------------------------------------
-// Defaults for each category
-// ------------------------------------------------------------------
-$defaultFactorioVersion = "2.0.77";
-$defaultDemoVersion     = "2.0.77";
-$defaultServerVersion   = "2.0.77";
-$defaultSpaceAgeVersion = "2.0.77";
+$defaultFactorioVersion = factorio_versions_latest_stable($versionData, 'factorio', '2.0.77');
+$defaultDemoVersion     = factorio_versions_latest_stable($versionData, 'demo', '2.0.77');
+$defaultServerVersion   = factorio_versions_latest_stable($versionData, 'server', '2.0.77');
+$defaultSpaceAgeVersion = factorio_versions_latest_stable($versionData, 'spaceage', '2.0.77');

@@ -165,12 +165,17 @@ Even though our project no longer reads a local `player-data.json` file, you sti
 
 ```
 Factorio-Downloader/
-├─ config.php              # Configuration: credentials, version arrays, defaults, and environment variables
+├─ config.php              # Loads credentials (.env) and the version data from versions.json
+├─ versions.json           # Auto-generated version data per distro (updated daily, do not edit by hand)
 ├─ .env                    # Environment file with sensitive credentials (not committed)
 ├─ strings.php             # Centralized English strings for the UI
 ├─ theme.php               # Handles version selection, filtering, and label assignment (Stable/Experimental)
 ├─ download.php            # PHP script for authenticating and redirecting to the download URL
 ├─ index.php               # Main entry point of the website
+├─ scripts/
+│   └─ update-versions.php  # Refreshes versions.json from Factorio's official APIs
+├─ .github/workflows/
+│   └─ update-versions.yml  # Daily GitHub Action that runs the updater and commits changes
 └─ site/
     ├─ downloadFactorio.php  # Full Game download section
     ├─ downloadDemo.php      # Demo download section
@@ -180,6 +185,48 @@ Factorio-Downloader/
     ├─ header.php            # Contains the header, meta tags, and CSS/JS links
     ├─ menu.php              # Site navigation and header logo
     └─ footer.php            # Footer content and scripts
+```
+
+---
+
+## Version Data & Automation 🔄
+
+The available Factorio versions are **no longer maintained by hand**. They live in
+`versions.json`, one block per distribution (base game, demo, headless server and the
+Space Age expansion), each split into `stable` and `experimental` lists:
+
+```json
+{
+  "factorio": { "stable": ["..."], "experimental": ["2.1.9"] },
+  "demo":     { "stable": ["..."], "experimental": ["..."] },
+  "server":   { "stable": ["..."], "experimental": ["..."] },
+  "spaceage": { "stable": ["..."], "experimental": ["..."] },
+  "all":      ["2.1.9", "...", "0.6.4"]
+}
+```
+
+`config.php` reads this file and rebuilds the same variables the site already used, so
+the rest of the code is untouched.
+
+A GitHub Action (`.github/workflows/update-versions.yml`) runs
+`scripts/update-versions.php` once a day (08:00 BRT / 11:00 UTC, plus manual
+`workflow_dispatch`). It reads two official Factorio APIs:
+
+- <https://factorio.com/api/latest-releases> — current stable/experimental head of each distro.
+- <https://updater.factorio.com/get-available-versions> — full headless history (safety net).
+
+and applies deltas only:
+
+- a **new experimental** release is appended to that distro's `experimental` list;
+- when an experimental build is **promoted to stable**, it is moved into `stable` (this is
+  exactly what happened with `2.0.77`).
+
+If anything changed, the workflow commits the updated `versions.json` straight to `main`.
+Existing versions are never dropped, so nothing you already had is lost. You can also run
+it locally:
+
+```bash
+php scripts/update-versions.php
 ```
 
 ---
