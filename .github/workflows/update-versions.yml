@@ -31,6 +31,9 @@ jobs:
           extensions: curl, json
           coverage: none
 
+      - name: Run tests
+        run: php tests/update-versions-test.php
+
       - name: Update versions.json
         id: update
         run: php scripts/update-versions.php
