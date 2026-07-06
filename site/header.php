@@ -47,7 +47,9 @@
 
 <style>
   /* Matches the official Factorio site: stable versions in bold white,
-     experimental-only versions dimmed, in the version picker list. */
-  .slot-button-inline.version-stable { color: #ffffff; font-weight: 700; }
-  .slot-button-inline.version-experimental { color: #5a5a5a; font-weight: 400; }
+     experimental-only versions dimmed, in the version picker list.
+     !important guards against factorio.com's own main.css (which sets a
+     uniform font-weight/color on .slot-button-inline) winning the cascade. */
+  .slot-button-inline.version-stable { color: #ffffff !important; font-weight: 700 !important; }
+  .slot-button-inline.version-experimental { color: #5a5a5a !important; font-weight: 400 !important; }
 </style>
