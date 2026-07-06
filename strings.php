@@ -50,7 +50,7 @@ $serverSectionDescription = "If you are running a Linux server, we offer a <b>he
 
 You can always use the following link to download the latest stable version. ";
 
-$downloadServerLinuxBig   = "Download Server for Linux (Headless)"; // Botão grande, se quiser
+$downloadServerLinuxBig   = "Download Server for Linux (Headless)"; // Big button, if used
 
 $serverTooltipLinux      = "Download Server for Linux (Headless)";
 

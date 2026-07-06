@@ -6,7 +6,7 @@ if (!$showDemo) return;
 $userOs = 'win64';
 if (isset($_SERVER['HTTP_USER_AGENT'])) {
     $ua = $_SERVER['HTTP_USER_AGENT'];
-    // Verifica Linux primeiro para garantir a detecção correta
+    // Check Linux first to ensure correct detection
     if (stripos($ua, 'Linux') !== false) {
         $userOs = 'linux64';
     } elseif (stripos($ua, 'Mac') !== false || stripos($ua, 'Darwin') !== false) {

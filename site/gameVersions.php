@@ -13,9 +13,9 @@
       </p>
       <div class="flex flex-center flex-wrap">
         <?php
-          // Vamos exibir o array $versions do config.php.
-          // Classificação stable/experimental segue o jogo base (Factorio alpha),
-          // igual ao site oficial: estável em branco/negrito, experimental em cinza.
+          // Display the $versions array from config.php.
+          // Stable/experimental classification follows the base game (Factorio alpha),
+          // matching the official site: stable in white/bold, experimental in gray.
           foreach ($versions as $ver) {
               $stateClass = isFactorioExperimental($ver) ? 'version-experimental' : 'version-stable';
               echo '<a href="?ver=' . urlencode($ver) . '" class="slot-button-inline ' . $stateClass . '">'

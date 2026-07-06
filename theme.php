@@ -2,21 +2,21 @@
 /**
  * theme.php
  *
- * - Carrega config.php e strings.php
- * - Captura a versão selecionada via ?ver=
- * - Determina se cada seção deve ser exibida ($showFactorio, etc.)
- * - Define $currentFactorioVersion, etc.
- * - Verifica se a versão é experimental para cada categoria
- * - Define $factorioLabel, $demoLabel, etc.
+ * - Loads config.php and strings.php
+ * - Captures the selected version via ?ver=
+ * - Determines whether each section should be shown ($showFactorio, etc.)
+ * - Defines $currentFactorioVersion, etc.
+ * - Checks whether the version is experimental for each category
+ * - Defines $factorioLabel, $demoLabel, etc.
  */
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/strings.php';
 
-// Captura e "limpa" o parâmetro ?ver=
+// Captures and trims the ?ver= parameter
 $selectedVersion = isset($_GET['ver']) ? trim($_GET['ver']) : '';
 
-// Se nenhuma versão for selecionada, usamos os valores default e mostramos todas as seções
+// If no version is selected, use the defaults and show all sections
 if (empty($selectedVersion)) {
     $currentFactorioVersion = $defaultFactorioVersion;
     $currentDemoVersion     = $defaultDemoVersion;
@@ -27,7 +27,7 @@ if (empty($selectedVersion)) {
     $showServer   = true;
     $showSpaceAge = true;
 } else {
-    // Agora consideramos também as versões experimentais
+    // Now we also consider experimental versions
     $showFactorio = in_array($selectedVersion, $validFactorioVersions) || in_array($selectedVersion, $experimentalFactorioVersions);
     $showDemo     = in_array($selectedVersion, $validDemoVersions)     || in_array($selectedVersion, $experimentalDemoVersions);
     $showServer   = in_array($selectedVersion, $validServerVersions)   || in_array($selectedVersion, $experimentalServerVersions);
@@ -39,7 +39,7 @@ if (empty($selectedVersion)) {
     $currentSpaceAgeVersion = $showSpaceAge ? $selectedVersion : $defaultSpaceAgeVersion;
 }
 
-// Funções para determinar se uma versão é experimental em cada categoria
+// Functions to determine whether a version is experimental in each category
 if (!function_exists('isFactorioExperimental')) {
     function isFactorioExperimental($ver) {
         global $experimentalFactorioVersions;
@@ -65,7 +65,7 @@ if (!function_exists('isSpaceAgeExperimental')) {
     }
 }
 
-// Define os rótulos (Stable/Experimental) para cada seção
+// Defines the labels (Stable/Experimental) for each section
 $factorioLabel = isFactorioExperimental($currentFactorioVersion) ? $experimentalLabel : $stableLabel;
 $demoLabel     = isDemoExperimental($currentDemoVersion)         ? $experimentalLabel : $stableLabel;
 $serverLabel   = isServerExperimental($currentServerVersion)     ? $experimentalLabel : $stableLabel;
