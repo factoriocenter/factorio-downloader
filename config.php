@@ -47,7 +47,10 @@ $autoload = __DIR__ . '/vendor/autoload.php';
 if (is_file($autoload)) {
     require_once $autoload;
 }
-if (class_exists(\Dotenv\Dotenv::class)) {
+// Use phpdotenv only if it is present AND recent enough (createImmutable exists
+// since v4). An old/incompatible vendor/ falls back to the built-in parser
+// instead of fataling.
+if (class_exists(\Dotenv\Dotenv::class) && method_exists(\Dotenv\Dotenv::class, 'createImmutable')) {
     $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
     $dotenv->safeLoad();
 } else {
