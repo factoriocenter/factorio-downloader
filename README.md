@@ -263,6 +263,25 @@ it locally:
 php scripts/update-versions.php
 ```
 
+### Auto-pulling the whole site on the server (optional)
+
+The runtime fetch above already keeps the **version list** current with no redeploy. If you
+also want the **code** to update automatically, note that cPanel only auto-deploys when you
+push to a cPanel-hosted repo — it does **not** auto-pull from GitHub on push. For a GitHub
+source, use a scheduled pull. A safe helper is included:
+
+```bash
+scripts/cpanel-pull.sh
+```
+
+It fast-forwards the deployed clone to `origin/main` (`git merge --ff-only`), so it **never
+deletes** untracked files (`.env`, `vendor/`, `certs/`) and never overwrites local changes —
+if it can't fast-forward it simply does nothing. Add it as an hourly **cPanel Cron Job**:
+
+```
+0 * * * *  /bin/bash /home/USER/public_html/facdl/scripts/cpanel-pull.sh >> "$HOME/facdl-pull.log" 2>&1
+```
+
 ---
 
 ## Environment Configuration (.env) ⚙️
