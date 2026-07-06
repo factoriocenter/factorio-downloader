@@ -6,7 +6,7 @@
     </div>
     <div class="header">
       <div class="header-inner">
-        <a href="/" class="header-logo"
+        <a href="./" class="header-logo"
           ><img
             src="https://cdn.factorio.com/assets/img/web/factorio-logo2.png"
         /></a>
