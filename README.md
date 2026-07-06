@@ -84,12 +84,18 @@
      FACTORIO_TOKEN_FALLBACK=your_fallback_token
      ```
 
-   - Verify that your environment variables are loaded correctly via Composer’s Dotenv.
+   - The `.env` file is loaded automatically. If Composer's `vlucas/phpdotenv` is
+     installed (`vendor/`), it is used; otherwise a small built-in parser reads
+     `.env`. **`composer install` is optional** — the app runs on a plain host
+     (e.g. cPanel via git) without it.
 
 3. **Deploy to a PHP-Enabled Web Server:**
 
-   - Upload all project files to your server (e.g., using Dokploy/Nixpacks, Docker, Apache, or Nginx with PHP-FPM).
-   - Ensure that the required PHP extensions (e.g., cURL and jq) are installed.
+   - Upload all project files to your server (e.g., using cPanel/git, Dokploy/Nixpacks, Docker, Apache, or Nginx with PHP-FPM).
+   - Ensure that the required PHP extensions (e.g., cURL) are enabled.
+   - Make sure `.env` (your credentials) and `versions.json` are present on the server.
+     `.env` is git-ignored, so create it directly on the host; `versions.json` is
+     committed and ships with the repository.
    - If using Docker, build the container with the provided Dockerfile (which creates a persistent volume for certificates and runs `composer install`).
 
 4. **Access the Application:**

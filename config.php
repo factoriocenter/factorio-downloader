@@ -2,15 +2,57 @@
 /**
  * config.php
  *
- * This configuration file loads environment variables using Composer's autoloader
- * and vlucas/phpdotenv. It also defines the arrays of available Factorio versions
- * and the default values for each category.
+ * This configuration file loads environment variables from the .env file and the
+ * available Factorio versions from versions.json.
+ *
+ * Environment loading is dependency-optional: if Composer's vlucas/phpdotenv is
+ * installed (vendor/) it is used; otherwise a small built-in parser reads .env.
+ * This lets the app run on a plain host (e.g. cPanel via git) without running
+ * `composer install`.
  */
 
-// Load Composer's autoloader and initialize Dotenv
-require_once __DIR__ . '/vendor/autoload.php';
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
-$dotenv->load();
+// Minimal .env parser used when vlucas/phpdotenv is not installed. Mirrors the
+// key behaviour we rely on: KEY=VALUE lines, comments/blank lines ignored, and
+// existing environment variables are never overwritten (like createImmutable).
+if (!function_exists('factorio_load_env')) {
+    function factorio_load_env(string $path): void {
+        if (!is_file($path) || !is_readable($path)) {
+            return;
+        }
+        foreach (file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+            $line = trim($line);
+            if ($line === '' || $line[0] === '#' || strpos($line, '=') === false) {
+                continue;
+            }
+            [$key, $value] = explode('=', $line, 2);
+            $key = trim($key);
+            $value = trim($value);
+            // Strip a single layer of matching surrounding quotes.
+            if (strlen($value) >= 2
+                && ($value[0] === '"' || $value[0] === "'")
+                && $value[strlen($value) - 1] === $value[0]) {
+                $value = substr($value, 1, -1);
+            }
+            if ($key === '' || getenv($key) !== false || isset($_ENV[$key])) {
+                continue;
+            }
+            $_ENV[$key] = $value;
+            putenv("$key=$value");
+        }
+    }
+}
+
+// Prefer Composer's Dotenv when available; fall back to the built-in parser.
+$autoload = __DIR__ . '/vendor/autoload.php';
+if (is_file($autoload)) {
+    require_once $autoload;
+}
+if (class_exists(\Dotenv\Dotenv::class)) {
+    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+    $dotenv->safeLoad();
+} else {
+    factorio_load_env(__DIR__ . '/.env');
+}
 
 // Credentials from the .env file
 $FACTORIO_LOGIN    = $_ENV['FACTORIO_LOGIN'] ?? 'your_login';
