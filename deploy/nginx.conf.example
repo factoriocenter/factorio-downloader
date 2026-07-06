@@ -1,0 +1,86 @@
+# ---------------------------------------------------------------------------
+# Example nginx server block for Factorio Downloader.
+#
+# Copy into your nginx config (e.g. /etc/nginx/sites-available/) and adjust:
+#   - server_name         -> your domain
+#   - root                -> where you deployed the app
+#   - ssl_certificate*    -> your certificate paths
+#   - fastcgi_pass        -> your PHP-FPM socket/version
+#
+# This mirrors the bundled .htaccess (used by Apache): it blocks web access to
+# the .env file, dotfiles, and internal folders, and forces HTTPS (which the
+# setup.php installer requires).
+# ---------------------------------------------------------------------------
+
+# HTTP -> HTTPS redirect (keep ACME challenges reachable for cert renewal).
+server {
+    listen 80;
+    listen [::]:80;
+    server_name your-domain.com;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/factorio-downloader;
+    }
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name your-domain.com;
+
+    root /var/www/factorio-downloader;
+    index index.php;
+
+    ssl_certificate     /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+
+    # -----------------------------------------------------------------------
+    # Security: deny sensitive files and internal directories.
+    # Regex locations are evaluated top-to-bottom, first match wins, so these
+    # must come before the generic PHP handler below.
+    # -----------------------------------------------------------------------
+
+    # Any dotfile (.env, .git, .htaccess, ...), except ACME challenges.
+    location ~ /\.(?!well-known/) {
+        deny all;
+        return 404;
+    }
+
+    # Credentials, dependency manifests and the auth helper — never public.
+    location ~* ^/(\.env(\..*)?|composer\.(json|lock))$ {
+        deny all;
+        return 404;
+    }
+
+    # Internal folders that must never be served over HTTP.
+    location ~* ^/(lib|scripts|tests|docs|vendor|certs)/ {
+        deny all;
+        return 404;
+    }
+
+    # -----------------------------------------------------------------------
+    # Application
+    # -----------------------------------------------------------------------
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include fastcgi_params;
+        fastcgi_pass unix:/run/php/php8.2-fpm.sock;   # adjust to your PHP-FPM
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        # Signal HTTPS to PHP so setup.php's HTTPS gate passes behind FPM.
+        fastcgi_param HTTPS on;
+    }
+
+    # Static assets (optional caching).
+    location ~* \.(?:css|js|png|jpe?g|gif|ico|svg|woff2?)$ {
+        expires 7d;
+        access_log off;
+        try_files $uri =404;
+    }
+}

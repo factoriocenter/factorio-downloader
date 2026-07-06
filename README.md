@@ -188,9 +188,15 @@ Factorio-Downloader/
 ├─ theme.php               # Handles version selection, filtering, and label assignment (Stable/Experimental)
 ├─ download.php            # PHP script for authenticating and redirecting to the download URL
 ├─ index.php               # Main entry point of the website
+├─ setup.php               # One-time web installer that creates .env (see "Web setup")
+├─ .htaccess               # Apache: blocks web access to .env and internal folders
+├─ lib/
+│   └─ factorio-auth.php    # Shared Factorio Web authentication API helper
 ├─ scripts/
 │   ├─ update-versions.php  # Refreshes versions.json from Factorio's official APIs
 │   └─ get-token.php        # Cross-platform helper to fetch your Factorio auth token
+├─ deploy/
+│   └─ nginx.conf.example   # nginx equivalent of the .htaccess protections
 ├─ .github/workflows/
 │   └─ update-versions.yml  # Daily GitHub Action that runs the updater and commits changes
 └─ site/
@@ -260,6 +266,30 @@ FACTORIO_TOKEN_FALLBACK=your_fallback_token
 ```
 
 These credentials (and the fallback token) are used to authenticate with Factorio’s API. **Downloads will only proceed if your account owns the game (and the Space Age DLC, when applicable).**
+
+### Web setup (create `.env` from the browser)
+
+Instead of creating `.env` by hand, you can use the bundled **one-time web installer**.
+Open `https://your-domain/setup.php`, enter your Factorio login and password once, and it
+will verify them against the official API and write `.env` for you (login, password and
+token). It is deliberately **single-use**:
+
+- If `.env` already exists, `setup.php` returns **403** and never shows the form. To
+  reconfigure, delete `.env` on the server first.
+- It **requires HTTPS** (localhost exempt), uses a CSRF token, and writes `.env` with
+  `0600` permissions.
+- **After a successful setup, delete `setup.php` from the server.**
+
+### Protecting `.env` from the web
+
+`.env` lives in the web root, so it must never be downloadable over HTTP.
+
+- **Apache / cPanel:** the bundled **`.htaccess`** already denies access to `.env`,
+  dotfiles, and the `lib/`, `scripts/`, `tests/`, `docs/`, `vendor/`, `certs/` folders.
+- **nginx:** copy **`deploy/nginx.conf.example`** into your server config (it applies the
+  same protections and forces HTTPS).
+
+After deploying, confirm `https://your-domain/.env` returns **403/404**.
 
 ---
 

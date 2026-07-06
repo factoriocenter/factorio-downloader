@@ -15,4 +15,4 @@
 </FilesMatch>
 
 # Block access to internal folders that should never be served.
-RedirectMatch 404 (?i)/(\.git|vendor|scripts|tests|docs)(/|$)
+RedirectMatch 404 (?i)/(\.git|vendor|scripts|tests|docs|lib|certs)(/|$)
