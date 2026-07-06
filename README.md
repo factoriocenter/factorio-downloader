@@ -120,9 +120,27 @@
 
 ---
 
-## Obtaining Your Token via cURL 🔑
+## Obtaining Your Token 🔑
 
-Even though our project no longer reads a local `player-data.json` file, you still need a valid token for authentication (for Full Game and Expansion downloads). You can use cURL to request your token directly from Factorio’s API on any platform.
+Even though our project no longer reads a local `player-data.json` file, you still need a valid token for authentication (for Full Game and Expansion downloads).
+
+### Recommended: the cross-platform helper script
+
+The easiest way, on **Windows, Linux and macOS**, is the bundled PHP helper:
+
+```bash
+php scripts/get-token.php
+```
+
+It asks for your login and password (the password is hidden), requests the token
+from Factorio's API, prints it, and can write it straight to your `.env` as
+`FACTORIO_TOKEN_FALLBACK`. It needs only PHP with cURL (already required by this
+project) — no `jq` or platform-specific tweaks. You can also pre-set the
+`FACTORIO_LOGIN` / `FACTORIO_PASSWORD` environment variables to run it non-interactively.
+
+### Alternative: raw cURL
+
+If you prefer, you can call the API directly with cURL on any platform.
 
 ### On Linux and macOS
 
@@ -179,7 +197,8 @@ Factorio-Downloader/
 ├─ download.php            # PHP script for authenticating and redirecting to the download URL
 ├─ index.php               # Main entry point of the website
 ├─ scripts/
-│   └─ update-versions.php  # Refreshes versions.json from Factorio's official APIs
+│   ├─ update-versions.php  # Refreshes versions.json from Factorio's official APIs
+│   └─ get-token.php        # Cross-platform helper to fetch your Factorio auth token
 ├─ .github/workflows/
 │   └─ update-versions.yml  # Daily GitHub Action that runs the updater and commits changes
 └─ site/
