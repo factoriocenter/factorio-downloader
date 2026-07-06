@@ -15,6 +15,7 @@ vendor/
 # 3) IDE and editor settings
 .idea/
 .vscode/
+.claude/
 
 # 4) System files
 .DS_Store

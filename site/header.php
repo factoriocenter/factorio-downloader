@@ -44,3 +44,10 @@
 <script src="https://cdn.factorio.com/assets/js/floating-ui-dom@1.0.4.js"></script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/htmx/1.9.10/htmx.min.js"></script>
+
+<style>
+  /* Matches the official Factorio site: stable versions in bold white,
+     experimental-only versions dimmed, in the version picker list. */
+  .slot-button-inline.version-stable { color: #ffffff; font-weight: 700; }
+  .slot-button-inline.version-experimental { color: #5a5a5a; font-weight: 400; }
+</style>
