@@ -82,15 +82,58 @@ $FACTORIO_PD       = $_ENV['FACTORIO_PD'] ?? '';
 // of the site already relies on ($valid*/$experimental*/$versions/$default*), so
 // theme.php, site/* and download.php require no changes.
 
-$versionsFile = __DIR__ . '/versions.json';
-$versionsRaw  = @file_get_contents($versionsFile);
-if ($versionsRaw === false) {
-    die("config.php: could not read versions.json ($versionsFile). "
-      . "Run scripts/update-versions.php to generate it.");
+// The site pulls the latest versions.json straight from GitHub (where the daily
+// Action commits it) and caches it locally for a short TTL, so new Factorio
+// releases appear automatically with no redeploy. On any failure it falls back to
+// the last cached copy, then to the versions.json shipped with the repo. Set
+// FACTORIO_VERSIONS_REMOTE=0 to use only the local file.
+$versionsFile  = __DIR__ . '/versions.json';        // committed fallback
+$versionsCache = __DIR__ . '/versions.cache.json';  // remote cache (git-ignored)
+$versionsUrl   = getenv('FACTORIO_VERSIONS_URL')
+    ?: 'https://raw.githubusercontent.com/factoriocenter/factorio-downloader/main/versions.json';
+$versionsTtl   = (int) (getenv('FACTORIO_VERSIONS_TTL') ?: 3600); // seconds
+$versionsFresh = null; // body just fetched this request, if any
+
+if (getenv('FACTORIO_VERSIONS_REMOTE') !== '0' && $versionsUrl !== '' && function_exists('curl_init')) {
+    $cacheIsFresh = is_file($versionsCache) && (time() - filemtime($versionsCache)) < $versionsTtl;
+    if (!$cacheIsFresh) {
+        $ch = curl_init($versionsUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 3,
+            CURLOPT_TIMEOUT        => 6,
+            CURLOPT_USERAGENT      => 'factorio-downloader/1.0',
+        ]);
+        $body = curl_exec($ch);
+        $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        curl_close($ch);
+        if ($body !== false && $code === 200 && is_array(json_decode($body, true))) {
+            $versionsFresh = $body;
+            @file_put_contents($versionsCache, $body, LOCK_EX);   // refresh cache
+        } elseif (is_file($versionsCache)) {
+            @touch($versionsCache);                                // don't hammer on failure
+        }
+    }
+}
+
+// Prefer the just-fetched body, then the cache, then the committed file.
+$versionsRaw = $versionsFresh;
+if (($versionsRaw === null || $versionsRaw === false || $versionsRaw === '') && is_file($versionsCache)) {
+    $versionsRaw = @file_get_contents($versionsCache);
+}
+if ($versionsRaw === null || $versionsRaw === false || $versionsRaw === '') {
+    $versionsRaw = @file_get_contents($versionsFile);
+}
+if ($versionsRaw === false || $versionsRaw === null) {
+    die("config.php: could not read versions data ($versionsFile).");
 }
 $versionData = json_decode($versionsRaw, true);
 if (!is_array($versionData)) {
-    die("config.php: versions.json is missing or not valid JSON.");
+    // Cache/remote may be corrupt; fall back to the committed file.
+    $versionData = json_decode((string) @file_get_contents($versionsFile), true);
+}
+if (!is_array($versionData)) {
+    die("config.php: versions data is missing or not valid JSON.");
 }
 
 // Small helpers scoped to the loader.

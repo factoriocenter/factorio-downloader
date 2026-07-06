@@ -26,6 +26,9 @@ Thumbs.db
 # 6) Automatically downloaded certificate bundle (cacert.pem)
 cacert.pem
 
+# 6b) Locally cached copy of versions.json fetched from GitHub at runtime
+versions.cache.json
+
 # 7) Temporary and uploads folders
 docs/superpowers/
 uploads/

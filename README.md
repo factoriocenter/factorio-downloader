@@ -231,6 +231,17 @@ Space Age expansion), each split into `stable` and `experimental` lists:
 `config.php` reads this file and rebuilds the same variables the site already used, so
 the rest of the code is untouched.
 
+**Auto-updating live site:** `config.php` pulls the latest `versions.json` straight from
+GitHub (`raw.githubusercontent.com`) and caches it locally for ~1 hour, so new Factorio
+releases appear on the deployed site **automatically, with no redeploy** — GitHub does the
+work (the daily Action), and the site just pulls the result when it changes. If the fetch
+fails it falls back to the last cached copy, then to the committed `versions.json`. Tune it
+with these optional environment variables:
+
+- `FACTORIO_VERSIONS_URL` — override the source URL.
+- `FACTORIO_VERSIONS_TTL` — cache lifetime in seconds (default `3600`).
+- `FACTORIO_VERSIONS_REMOTE=0` — disable the remote fetch and use only the local file.
+
 A GitHub Action (`.github/workflows/update-versions.yml`) runs
 `scripts/update-versions.php` once a day (08:00 BRT / 11:00 UTC, plus manual
 `workflow_dispatch`). It reads two official Factorio APIs:
