@@ -7,8 +7,8 @@
  *
  * Credentials are sent in the POST body (application/x-www-form-urlencoded) with
  * api_version=2, so the success response is {"token": "...", "username": "..."}
- * (a legacy array response is also accepted). Used by the CLI helper
- * (scripts/get-token.php), the web installer (setup.php) and download.php.
+ * (a legacy array response is also accepted). Used by the web installer
+ * (setup.php) and download.php.
  *
  * This file only defines functions; it produces no output if requested directly.
  */

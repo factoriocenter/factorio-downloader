@@ -14,7 +14,6 @@ if (isset($_SERVER['HTTP_USER_AGENT'])) {
 <div class="flex-column mt0 panel type-headless">
   <h2 class="flex flex-space-between">
     <div><?php echo $serverSectionTitle; ?></div>
-    <div class="download-version"><?php echo $serverLabel; ?> - <?php echo $currentServerVersion; ?></div>
   </h2>
   <div class="panels2 flex-grow mh350">
     <div class="flex-column flex-grow">

@@ -32,7 +32,6 @@ switch ($userOs) {
 <div class="flex-column mt0 panel type-expansion">
   <h2 class="flex flex-space-between">
     <div><?php echo $spaceAgeSectionTitle; ?></div>
-    <div class="download-version"><?php echo $spaceAgeLabel; ?> - <?php echo $currentSpaceAgeVersion; ?></div>
   </h2>
   <div class="panels2 flex-grow mh350">
     <div class="panel-inset m0 p0 download-banner position-relative">

@@ -33,7 +33,6 @@ switch ($userOs) {
 <div class="flex-column mt0 panel type-demo">
   <h2 class="flex flex-space-between">
     <div><?php echo $demoSectionTitle; ?></div>
-    <div class="download-version"><?php echo $demoLabel; ?> - <?php echo $currentDemoVersion; ?></div>
   </h2>
   <div class="panels2 flex-grow mh350">
     <div class="flex-column flex-grow">

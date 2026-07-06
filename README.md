@@ -1,222 +1,166 @@
-# Factorio Downloader 🚀
+# Factorio Downloader
 
-**Factorio Downloader** is a fan-made web application that enables you to download various versions of Factorio—including the full game, demo, headless server version, and the Space Age expansion—with ease and efficiency. The site dynamically filters available downloads based on your selected version and detected operating system, ensuring that only authorized users (those who own the base game—and, when required, the Space Age DLC) can access the downloads.
+**Factorio Downloader** is a self-hosted web application for downloading Factorio builds — the full game, the free demo, the headless server, and the Space Age expansion — filtered by version and operating system.
 
-> **Important Security Notice:**  
-> To help prevent piracy, you **must** configure your environment by filling out the **.env** file with your Factorio credentials. Downloads will only proceed if your account owns the game (and the Space Age DLC for expansion downloads).
+It is a **personal-use tool, not a piracy vector**: every download for the full game and the Space Age expansion is authenticated against your own Factorio account through the official API. If your account doesn't own the game (or the DLC), the download simply doesn't happen. Your credentials are never shared with, or visible to, anyone but your own server.
+
+> **Security notice.** Configure your own Factorio account credentials before use (see [Setup](#setup)). Downloads for the full game and Space Age are gated by account ownership — this project does not, and cannot, bypass that.
 
 ---
 
-## Table of Contents 📑
+## Table of Contents
 
-- [Factorio Downloader 🚀](#factorio-downloader-)
-  - [Table of Contents 📑](#table-of-contents-)
-  - [Features ✨](#features-)
-  - [Technologies Used 🛠️](#technologies-used-️)
-  - [Installation 🚀](#installation-)
-  - [Usage 🎮](#usage-)
-  - [Obtaining Your Token via cURL 🔑](#obtaining-your-token-via-curl-)
-    - [On Linux and macOS](#on-linux-and-macos)
-    - [On Windows](#on-windows)
-  - [Project Structure 📁](#project-structure-)
-  - [Environment Configuration (.env) ⚙️](#environment-configuration-env-️)
-  - [Contributing 🤝](#contributing-)
-  - [License 📄](#license-)
-  - [Acknowledgments 🙏](#acknowledgments-)
+- [Features](#features)
+- [How It Works](#how-it-works)
+- [Requirements](#requirements)
+- [Deployment](#deployment)
+- [Setup](#setup)
+- [Keeping Your Server Protected](#keeping-your-server-protected)
+- [Usage](#usage)
+- [Automatic Version Updates](#automatic-version-updates)
+- [Project Structure](#project-structure)
+- [Contributing](#contributing)
+- [License](#license)
+- [Acknowledgments](#acknowledgments)
 - [Screenshot](#screenshot)
 
 ---
 
-## Features ✨
+## Features
 
-- **Version Filtering:**  
-  Displays a complete, ordered list of Factorio versions (from **Latest Version** down to **0.6.4**) as defined in the configuration. When you select a version, the site dynamically shows only the relevant download sections.
-
-- **Multiple Download Categories:**  
-  - **Full Game:** Download the complete version of Factorio.
-  - **Demo:** Access the free, publicly available demo version.
-  - **Server (Headless):** Download the headless server version (available on Linux only).
-  - **Space Age:** Download the Space Age expansion (available from version 2.0.7 onward).
-
-- **Dynamic OS Detection:**  
-  Automatically detects your operating system (Windows, macOS, or Linux) and highlights the corresponding download button for a seamless experience.
-
-- **Authentication & Ownership Verification:**  
-  For Full Game and Space Age downloads, the application uses credentials defined in the **.env** file (loaded via Dotenv) to authenticate with Factorio’s API. Downloads proceed only if:
-  - The login and password are correct.
-  - Your account owns the base game (and the Space Age DLC, if applicable).
-
-- **Direct Download Redirection:**  
-  Instead of proxying downloads through your server, the system retrieves the official download URL from Factorio’s servers and redirects your browser directly, ensuring fast and reliable downloads.
+- **Full version history** — every Factorio release back to `0.6.4`, always current, with no manual maintenance (see [Automatic Version Updates](#automatic-version-updates)).
+- **Four download categories** — Full Game, Demo, Headless Server (Linux only), and the Space Age expansion.
+- **Stable vs. Experimental at a glance** — the version picker mirrors the official site: stable releases in white, experimental-only builds dimmed.
+- **Automatic OS detection** — the right download button (Windows, macOS, or Linux) is highlighted for you.
+- **Account-gated downloads** — Full Game and Space Age downloads authenticate against the official [Factorio Web authentication API](https://wiki.factorio.com/Web_authentication_API); they only proceed if your account owns the content.
+- **Direct redirection, no proxying** — your browser is redirected straight to Factorio's own servers; this app never streams game files itself.
+- **One-time, guided setup** — a built-in web installer (`setup.php`) collects and verifies your credentials once, then locks itself down permanently.
 
 ---
 
-## Technologies Used 🛠️
+## How It Works
 
-- **PHP:** Server-side scripting and dynamic page rendering.
-- **cURL:** For fetching data from Factorio’s API and following redirects.
-- **jq:** A lightweight command-line JSON processor used to parse API responses.
-- **CSS & HTML:** For a clean, Factorio-inspired user interface.
-- **dotenv (vlucas/phpdotenv):** For environment variable management (credentials are loaded from a **.env** file).
-- **ChatGPT o3-mini:** Approximately 90% of the project’s code and structure was developed with assistance from ChatGPT o3-mini.
+```
+GitHub Action (daily)  ──▶  versions.json  ──▶  your server (cached fetch, no redeploy needed)
+                                                        │
+you, once  ──▶  setup.php  ──▶  .env (credentials)      │
+                                                        ▼
+                                              index.php / download.php
+                                                        │
+                                          authenticates with Factorio's API,
+                                          redirects your browser to the real download
+```
+
+- **Version data** lives in `versions.json` and is refreshed daily by a GitHub Action that reads Factorio's own release APIs. Your deployed site pulls the latest copy automatically — no redeploy required when a new version ships.
+- **Credentials** live only in your server's `.env` file, created once through `setup.php` and never committed to git or exposed over HTTP.
+- **Downloads** are never proxied through your server: it asks Factorio for the real, signed download URL and redirects your browser to it directly.
 
 ---
 
-## Installation 🚀
+## Requirements
 
-1. **Clone the Repository:**
+- PHP 8.2+ with the `curl` extension.
+- Apache (with `.htaccess` support) or nginx, or Docker.
+- A Factorio account that owns the content you want to download (and the Space Age DLC, if applicable).
+- No Composer/Node build step is required — the app runs out of the box on a plain host.
 
-   ```bash
-   git clone https://github.com/louanfontenele/Factorio-Downloader.git
-   ```
+---
 
-2. **Configure the Environment:**
+## Deployment
 
-   - **Create and fill the `.env` file:**  
-     Copy the provided `.env.example` (if available) to `.env` and fill in your Factorio credentials. This step is essential to ensure that downloads (for full game and expansion) work only when proper credentials are provided—helping to prevent piracy.
+1. **Get the code onto your server.**
 
-     Example **.env** file:
-
-     ```dotenv
-     FACTORIO_LOGIN=your_login
-     FACTORIO_PASSWORD=your_password
-     # Optionally, set a fallback token obtained via cURL:
-     FACTORIO_TOKEN_FALLBACK=your_fallback_token
+   - **Git (recommended, e.g. cPanel's Git Version Control):**
+     ```bash
+     git clone https://github.com/factoriocenter/factorio-downloader.git
      ```
+   - **Docker:** build the included `Dockerfile` (Apache + PHP, pre-configured with the security hardening described below).
+   - **Manual upload:** copy all files to your PHP-enabled host via FTP/File Manager.
 
-   - The `.env` file is loaded automatically. If Composer's `vlucas/phpdotenv` is
-     installed (`vendor/`), it is used; otherwise a small built-in parser reads
-     `.env`. **`composer install` is optional** — the app runs on a plain host
-     (e.g. cPanel via git) without it.
+2. **Point your web server at the project root** (`index.php` is the entry point).
 
-3. **Deploy to a PHP-Enabled Web Server:**
-
-   - Upload all project files to your server (e.g., using cPanel/git, Dokploy/Nixpacks, Docker, Apache, or Nginx with PHP-FPM).
-   - Ensure that the required PHP extensions (e.g., cURL) are enabled.
-   - Make sure `.env` (your credentials) and `versions.json` are present on the server.
-     `.env` is git-ignored, so create it directly on the host; `versions.json` is
-     committed and ships with the repository.
-   - If using Docker, build the container with the provided Dockerfile (which creates a persistent volume for certificates and runs `composer install`).
-
-4. **Access the Application:**
-
-   - Open your browser and navigate to your project URL (e.g., `http://yourdomain.com/index.php`).
+3. **Run the setup** — see the next section. This is the only manual step; everything else (versions, redirects, protection) is automatic.
 
 ---
 
-## Usage 🎮
+## Setup
 
-- **Select a Version:**  
-  The homepage displays an ordered list of available Factorio versions. Click on a version to filter the download sections.
+The **only** thing you need to configure by hand is your Factorio account credentials. Everything else — fetching your auth token, keeping `.env` safe, keeping the version list current — is handled automatically.
 
-- **Download Content:**  
-  Depending on the selected version:
-  - Download options for the Full Game, Demo, Server (Headless), and Space Age will be displayed.
-  - For Full Game and Space Age downloads, authentication is enforced—your account must own the game (and the DLC, if applicable).
-  - The Server (Headless) version is available only for Linux.
+### Guided setup (recommended)
 
-- **Direct Redirection:**  
-  When you click a download button, the application retrieves the official download URL from Factorio’s servers and redirects your browser directly.
+Open `https://your-domain/setup.php` in your browser:
 
----
+1. Enter your Factorio login and password. (Some accounts require a one-time e-mail code — the form asks for it automatically if needed.)
+2. `setup.php` verifies your credentials against the official Factorio API, obtains a token, and writes a `.env` file for you — nothing to copy, no manual token lookup.
+3. **Delete `setup.php` from the server** once you see the success page. It has already locked itself, but removing the file is good hygiene.
 
-## Obtaining Your Token 🔑
+That's it — no command-line tools, no `cURL` invocations, no separate "get my token" script to run.
 
-Even though our project no longer reads a local `player-data.json` file, you still need a valid token for authentication (for Full Game and Expansion downloads).
+### The one-time lock, guaranteed
 
-### Recommended: the cross-platform helper script
+`setup.php` is designed to run **exactly once**, and that guarantee holds under any kind of request, not just normal use through a browser:
 
-The easiest way, on **Windows, Linux and macOS**, is the bundled PHP helper:
+- The very first thing the script does, before anything else runs, is check whether `.env` already exists. If it does, every request — `GET`, `POST`, or anything else — gets an immediate `403` and the form is never shown, never processed.
+- The check-then-write sequence is protected by an exclusive file lock, so even two requests arriving at the exact same instant can't both slip through before either one finishes writing `.env`.
+- `.env` is the **only** file `setup.php` ever writes, and `setup.php` is the **only** file in the entire codebase that ever writes to `.env`. There is no other endpoint, parameter, or code path anywhere in the project that can create, modify, or delete it.
 
-```bash
-php scripts/get-token.php
-```
+In short: once `.env` exists, the installer is permanently inert — no request, race condition, or retry can change that. To reconfigure, you must delete `.env` from the server yourself.
 
-It asks for your login and password (the password is hidden), requests the token
-from Factorio's API, prints it, and can write it straight to your `.env` as
-`FACTORIO_TOKEN_FALLBACK`. It needs only PHP with cURL (already required by this
-project) — no `jq` or platform-specific tweaks. You can also pre-set the
-`FACTORIO_LOGIN` / `FACTORIO_PASSWORD` environment variables to run it non-interactively.
+### Manual setup (alternative)
 
-### Alternative: raw cURL
-
-Per the official [Web authentication API](https://wiki.factorio.com/Web_authentication_API),
-credentials must be sent in the **POST body** (`application/x-www-form-urlencoded`),
-**not** as URL query-string parameters. The single command below works the same in a
-Linux/macOS shell, Windows CMD, and PowerShell (it uses the real `curl`; `--data-urlencode`
-handles encoding, so no `jq` is needed). Replace `YOUR_LOGIN` and `YOUR_PASSWORD`:
-
-```sh
-curl -X POST "https://auth.factorio.com/api-login" --data-urlencode "username=YOUR_LOGIN" --data-urlencode "password=YOUR_PASSWORD" --data-urlencode "require_game_ownership=true" --data-urlencode "api_version=2"
-```
-
-On success you get a JSON object with the token:
-
-```json
-{ "token": "8me7gpab3nrqt5fahf7b363qa65uh7", "username": "your_login" }
-```
-
-(Omit `api_version=2` and the response is instead an array: `["8me7gpab3nrqt5fahf7b363qa65uh7"]`.)
-
-Copy the token and add it to your `.env` file:
+If you'd rather not expose `setup.php` at all, copy `.env.example` to `.env` and fill it in directly:
 
 ```dotenv
-FACTORIO_TOKEN_FALLBACK=8me7gpab3nrqt5fahf7b363qa65uh7
+FACTORIO_LOGIN=your_login
+FACTORIO_PASSWORD=your_password
+# Optional: a pre-obtained token, used instead of authenticating on every request.
+FACTORIO_TOKEN_FALLBACK=your_fallback_token
 ```
 
-> **Note (PowerShell):** in older Windows PowerShell, `curl` is an alias for
-> `Invoke-WebRequest` and does **not** accept `--data-urlencode` (you may see
-> `built-in manual was disabled at build-time` or similar). Use `curl.exe` explicitly,
-> run it from CMD, or just use the `php scripts/get-token.php` helper above.
+`download.php` authenticates on demand using `FACTORIO_LOGIN`/`FACTORIO_PASSWORD` if no fallback token is set (or if the token has expired), so `FACTORIO_TOKEN_FALLBACK` is an optional performance shortcut, not a requirement.
 
-> **Note:**  
->
-> - Your account must own the base game (and the Space Age DLC, if required) for the token to be issued.  
-> - Some accounts require an e-mail authentication code on login; resend it via the `email_authentication_code` field (the helper script prompts for it automatically).
-> - Tokens may expire over time, so if downloads start failing, request a new one.
+> **TLS note:** authentication verifies Factorio's certificate against your system's CA
+> trust store — no CA bundle is ever downloaded at runtime. If your PHP has a broken
+> `curl.cainfo` and you see a "TLS certificate verification failed" message, point the
+> optional `FACTORIO_CA_BUNDLE` environment variable at a trusted `cacert.pem`, or fix
+> `curl.cainfo` in `php.ini`.
 
 ---
 
-## Project Structure 📁
+## Keeping Your Server Protected
 
-```
-Factorio-Downloader/
-├─ config.php              # Loads credentials (.env) and the version data from versions.json
-├─ versions.json           # Auto-generated version data per distro (updated daily, do not edit by hand)
-├─ .env                    # Environment file with sensitive credentials (not committed)
-├─ strings.php             # Centralized English strings for the UI
-├─ theme.php               # Handles version selection, filtering, and label assignment (Stable/Experimental)
-├─ download.php            # PHP script for authenticating and redirecting to the download URL
-├─ index.php               # Main entry point of the website
-├─ setup.php               # One-time web installer that creates .env (see "Web setup")
-├─ .htaccess               # Apache: blocks web access to .env and internal folders
-├─ lib/
-│   └─ factorio-auth.php    # Shared Factorio Web authentication API helper
-├─ scripts/
-│   ├─ update-versions.php  # Refreshes versions.json from Factorio's official APIs
-│   └─ get-token.php        # Cross-platform helper to fetch your Factorio auth token
-├─ deploy/
-│   └─ nginx.conf.example   # nginx equivalent of the .htaccess protections
-├─ .github/workflows/
-│   └─ update-versions.yml  # Daily GitHub Action that runs the updater and commits changes
-└─ site/
-    ├─ downloadFactorio.php  # Full Game download section
-    ├─ downloadDemo.php      # Demo download section
-    ├─ downloadServer.php    # Headless Server download section (Linux only)
-    ├─ downloadSpaceAge.php  # Space Age expansion download section
-    ├─ gameVersions.php      # Displays the list of available versions
-    ├─ header.php            # Contains the header, meta tags, and CSS/JS links
-    ├─ menu.php              # Site navigation and header logo
-    └─ footer.php            # Footer content and scripts
-```
+`.env` lives in the web root, so it must never be downloadable over HTTP — and neither should `.git`, if your host clones the repository directly into the site's public folder.
+
+- **Apache / cPanel:** the bundled **`.htaccess`** denies access to `.env`, every dotfile
+  (including a `.git` directory sitting in the web root), directory listing, and the
+  `lib/`, `scripts/`, `tests/`, `docs/`, `vendor/`, `certs/`, `site/` folders — plus
+  baseline security headers (`X-Content-Type-Options`, `X-Frame-Options`,
+  `Referrer-Policy`) for the whole site.
+- **nginx:** copy **`deploy/nginx.conf.example`** into your server config — it mirrors
+  the same protections and forces HTTPS.
+- **Docker:** the `Dockerfile` enables `mod_headers` and sets `AllowOverride All` (the
+  base image ships with `AllowOverride None`, which would otherwise make `.htaccess`
+  silently inert), and a **`.dockerignore`** keeps `.git`, `.env`, and other local-only
+  files out of the built image entirely.
+
+**After deploying, verify it:** `https://your-domain/.env` and `https://your-domain/.git/config` should both return **403/404**.
 
 ---
 
-## Version Data & Automation 🔄
+## Usage
 
-The available Factorio versions are **no longer maintained by hand**. They live in
-`versions.json`, one block per distribution (base game, demo, headless server and the
-Space Age expansion), each split into `stable` and `experimental` lists:
+1. **Browse versions.** The homepage lists every available Factorio version. Click one to filter the download sections to it.
+2. **Pick a category.** Full Game, Demo, Server, and Space Age sections appear as relevant to the selected version.
+3. **Download.** Clicking a download button authenticates (if needed) and redirects your browser straight to Factorio's own servers — nothing is proxied through this app.
+
+The Headless Server build is Linux-only, matching Factorio's own distribution.
+
+---
+
+## Automatic Version Updates
+
+Version data is **not maintained by hand**. It lives in `versions.json`, split by distribution (base game, demo, headless server, Space Age) and channel (`stable` / `experimental`):
 
 ```json
 {
@@ -228,140 +172,89 @@ Space Age expansion), each split into `stable` and `experimental` lists:
 }
 ```
 
-`config.php` reads this file and rebuilds the same variables the site already used, so
-the rest of the code is untouched.
-
-**Auto-updating live site:** `config.php` pulls the latest `versions.json` straight from
-GitHub (`raw.githubusercontent.com`) and caches it locally for ~1 hour, so new Factorio
-releases appear on the deployed site **automatically, with no redeploy** — GitHub does the
-work (the daily Action), and the site just pulls the result when it changes. If the fetch
-fails it falls back to the last cached copy, then to the committed `versions.json`. Tune it
-with these optional environment variables:
-
-- `FACTORIO_VERSIONS_URL` — override the source URL.
-- `FACTORIO_VERSIONS_TTL` — cache lifetime in seconds (default `3600`).
-- `FACTORIO_VERSIONS_REMOTE=0` — disable the remote fetch and use only the local file.
-
-A GitHub Action (`.github/workflows/update-versions.yml`) runs
-`scripts/update-versions.php` once a day (08:00 BRT / 11:00 UTC, plus manual
-`workflow_dispatch`). It reads two official Factorio APIs:
-
-- <https://factorio.com/api/latest-releases> — current stable/experimental head of each distro.
-- <https://updater.factorio.com/get-available-versions> — full headless history (safety net).
-
-and applies deltas only:
-
-- a **new experimental** release is appended to that distro's `experimental` list;
-- when an experimental build is **promoted to stable**, it is moved into `stable` (this is
-  exactly what happened with `2.0.77`).
-
-If anything changed, the workflow commits the updated `versions.json` straight to `main`.
-Existing versions are never dropped, so nothing you already had is lost. You can also run
-it locally:
+**A daily GitHub Action** (`.github/workflows/update-versions.yml`, 08:00 BRT / 11:00 UTC) reads two official Factorio APIs — [`latest-releases`](https://factorio.com/api/latest-releases) and [`get-available-versions`](https://updater.factorio.com/get-available-versions) — and commits `versions.json` only when something actually changed: a new experimental release, or an experimental build promoted to stable. No version already known is ever dropped. Run it yourself with:
 
 ```bash
 php scripts/update-versions.php
 ```
 
-### Auto-pulling the whole site on the server (optional)
+**Your deployed site never needs a redeploy for this.** `config.php` fetches the latest `versions.json` straight from GitHub and caches it locally (default: 1 hour), falling back to the last good cache and then to the committed file if the fetch ever fails. Tunable via environment variables:
 
-The runtime fetch above already keeps the **version list** current with no redeploy. If you
-also want the **code** to update automatically, note that cPanel only auto-deploys when you
-push to a cPanel-hosted repo — it does **not** auto-pull from GitHub on push. For a GitHub
-source, use a scheduled pull. A safe helper is included:
+| Variable | Purpose |
+|---|---|
+| `FACTORIO_VERSIONS_URL` | Override the source URL. |
+| `FACTORIO_VERSIONS_TTL` | Cache lifetime in seconds (default `3600`). |
+| `FACTORIO_VERSIONS_REMOTE=0` | Disable the remote fetch; use only the local file. |
 
-```bash
-scripts/cpanel-pull.sh
-```
-
-It fast-forwards the deployed clone to `origin/main` (`git merge --ff-only`), so it **never
-deletes** untracked files (`.env`, `vendor/`, `certs/`) and never overwrites local changes —
-if it can't fast-forward it simply does nothing. Add it as an hourly **cPanel Cron Job**:
+**Optional: keep the code itself in sync too.** The runtime fetch above only refreshes the version *list*. If you also want the application *code* to update automatically when you push to GitHub, add `scripts/cpanel-pull.sh` as an hourly cron job:
 
 ```
 0 * * * *  /bin/bash /home/USER/public_html/facdl/scripts/cpanel-pull.sh >> "$HOME/facdl-pull.log" 2>&1
 ```
 
+It fast-forwards the deployed clone (`git merge --ff-only`) — it never deletes untracked files (`.env`, `vendor/`, `certs/`) and never overwrites local changes; if it can't fast-forward cleanly, it does nothing and logs why.
+
 ---
 
-## Environment Configuration (.env) ⚙️
+## Project Structure
 
-To ensure that downloads are allowed only for authorized users, you **must** create a `.env` file in the project root with your Factorio credentials. For example:
-
-```dotenv
-FACTORIO_LOGIN=your_login
-FACTORIO_PASSWORD=your_password
-# Optional: Provide a fallback token obtained via cURL if direct authentication fails:
-FACTORIO_TOKEN_FALLBACK=your_fallback_token
+```
+factorio-downloader/
+├─ index.php                # Entry point
+├─ theme.php                # Version selection, filtering, Stable/Experimental labeling
+├─ download.php              # Authenticates and redirects to the official download URL
+├─ setup.php                # One-time web installer that creates .env
+├─ config.php                # Loads .env and versions.json (with live GitHub fetch + cache)
+├─ strings.php               # UI copy
+├─ versions.json             # Version data (auto-updated, do not edit by hand)
+├─ .env.example              # Template for manual .env setup
+├─ .htaccess                 # Apache: blocks .env, .git, and internal folders
+├─ .dockerignore             # Keeps .git/.env out of Docker images
+├─ Dockerfile                # Apache + PHP container, pre-hardened
+├─ lib/
+│   └─ factorio-auth.php      # Shared Factorio Web authentication API client
+├─ scripts/
+│   ├─ update-versions.php    # Refreshes versions.json from Factorio's official APIs
+│   └─ cpanel-pull.sh         # Optional cron helper to auto-pull code updates
+├─ deploy/
+│   └─ nginx.conf.example     # nginx equivalent of the .htaccess protections
+├─ tests/
+│   └─ update-versions-test.php
+├─ .github/workflows/
+│   └─ update-versions.yml    # Daily GitHub Action
+└─ site/
+    ├─ downloadFactorio.php   # Full Game section
+    ├─ downloadDemo.php       # Demo section
+    ├─ downloadServer.php     # Headless Server section
+    ├─ downloadSpaceAge.php   # Space Age section
+    ├─ gameVersions.php       # Version picker
+    ├─ header.php             # <head>, styles, scripts
+    ├─ menu.php               # Top navigation
+    └─ footer.php             # Footer
 ```
 
-These credentials (and the fallback token) are used to authenticate with Factorio’s API. **Downloads will only proceed if your account owns the game (and the Space Age DLC, when applicable).**
+---
 
-> **TLS note:** authentication verifies the Factorio server's certificate against the
-> system trust store (no CA bundle is ever downloaded at runtime). On most hosts this
-> works out of the box. If your PHP has a broken `curl.cainfo` (common on some local
-> Windows setups) and you see a "TLS certificate verification failed" message, point the
-> optional `FACTORIO_CA_BUNDLE` environment variable at a trusted `cacert.pem`, or fix
-> `curl.cainfo` in `php.ini`.
+## Contributing
 
-### Web setup (create `.env` from the browser)
-
-Instead of creating `.env` by hand, you can use the bundled **one-time web installer**.
-Open `https://your-domain/setup.php`, enter your Factorio login and password once, and it
-will verify them against the official API and write `.env` for you (login, password and
-token). It is deliberately **single-use**:
-
-- If `.env` already exists, `setup.php` returns **403** and never shows the form. To
-  reconfigure, delete `.env` on the server first.
-- It **requires HTTPS** (localhost exempt), uses a CSRF token, and writes `.env` with
-  `0600` permissions.
-- **After a successful setup, delete `setup.php` from the server.**
-
-### Protecting `.env` from the web
-
-`.env` lives in the web root, so it must never be downloadable over HTTP.
-
-- **Apache / cPanel:** the bundled **`.htaccess`** already denies access to `.env`,
-  dotfiles (including `.git`, even when the repo is cloned straight into the web root),
-  directory listing, and the `lib/`, `scripts/`, `tests/`, `docs/`, `vendor/`, `certs/`,
-  `site/` folders — plus baseline security headers (`X-Content-Type-Options`,
-  `X-Frame-Options`, `Referrer-Policy`) for the whole site.
-- **nginx:** copy **`deploy/nginx.conf.example`** into your server config (it applies the
-  same protections and forces HTTPS).
-- **Docker:** the Dockerfile enables `mod_headers` and sets `AllowOverride All`, since the
-  base image's default vhost ships with `AllowOverride None`, which would otherwise make
-  `.htaccess` silently inert. A **`.dockerignore`** also keeps `.git`, `.env`, and other
-  local-only files out of the built image in the first place.
-
-After deploying, confirm `https://your-domain/.env` and `https://your-domain/.git/config`
-both return **403/404**.
+Contributions are welcome. Please open an issue or a pull request on the [GitHub repository](https://github.com/factoriocenter/factorio-downloader).
 
 ---
 
-## Contributing 🤝
+## License
 
-Contributions are welcome! If you’d like to enhance the project, please open an issue or submit a pull request on the [GitHub repository](https://github.com/louanfontenele/Factorio-Downloader/).
-
----
-
-## License 📄
-
-This project is provided as a fan project and is not officially affiliated with Wube Software. Use it at your own risk. Please ensure you comply with all relevant licensing and distribution laws.
+This is a fan project, not affiliated with Wube Software. Use it at your own risk, and make sure your use complies with Factorio's own terms and applicable law.
 
 ---
 
-## Acknowledgments 🙏
+## Acknowledgments
 
-- **ChatGPT o3-mini:** Approximately 90% of the project’s code and structure was developed with assistance from ChatGPT o3-mini.
-- **Factorio Community:** Thanks to the vibrant Factorio community and existing projects for inspiration.
-- **Tools:** Special thanks to the developers of PHP, cURL, jq, and vlucas/phpdotenv for providing robust tools that made this project possible.
-
----
-
-Enjoy Factorio and happy downloading! 🎉
+- The Factorio community, for inspiration and prior art in this space.
+- The maintainers of PHP, cURL, and `vlucas/phpdotenv`.
+- Built with the help of AI coding assistants.
 
 ---
 
-# Screenshot
+## Screenshot
 
-![FacDL Screenshot](factoriodownloader.png "Factorio Downloader Screenshot")
+![Factorio Downloader screenshot](factoriodownloader.png "Factorio Downloader Screenshot")
