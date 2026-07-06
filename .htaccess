@@ -1,0 +1,18 @@
+# ------------------------------------------------------------------
+# Block direct web access to sensitive files.
+# The app is served from the web root, so .env (credentials) and other
+# non-public files must never be downloadable over HTTP.
+# ------------------------------------------------------------------
+
+# Apache 2.4+
+<FilesMatch "(^\.env|\.env\..*|composer\.(json|lock)|\.gitignore|\.gitattributes)$">
+    Require all denied
+</FilesMatch>
+
+# Deny any dotfile (e.g. .env, .git, .htaccess itself is already protected).
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# Block access to internal folders that should never be served.
+RedirectMatch 404 (?i)/(\.git|vendor|scripts|tests|docs)(/|$)
