@@ -1,0 +1,24 @@
+# ------------------------------------------------------------------
+# Never bake these into the image. `COPY . /var/www/html` in the Dockerfile
+# would otherwise ship the local .git history and .env credentials straight
+# into the container's web root.
+# ------------------------------------------------------------------
+.git
+.github
+.gitignore
+.gitattributes
+.env
+.env.*
+!.env.example
+vendor/
+certs/
+node_modules/
+.idea/
+.vscode/
+.claude/
+docs/
+tests/
+*.log
+*.cache
+*.tmp
+versions.cache.json

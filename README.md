@@ -322,11 +322,19 @@ token). It is deliberately **single-use**:
 `.env` lives in the web root, so it must never be downloadable over HTTP.
 
 - **Apache / cPanel:** the bundled **`.htaccess`** already denies access to `.env`,
-  dotfiles, and the `lib/`, `scripts/`, `tests/`, `docs/`, `vendor/`, `certs/` folders.
+  dotfiles (including `.git`, even when the repo is cloned straight into the web root),
+  directory listing, and the `lib/`, `scripts/`, `tests/`, `docs/`, `vendor/`, `certs/`,
+  `site/` folders — plus baseline security headers (`X-Content-Type-Options`,
+  `X-Frame-Options`, `Referrer-Policy`) for the whole site.
 - **nginx:** copy **`deploy/nginx.conf.example`** into your server config (it applies the
   same protections and forces HTTPS).
+- **Docker:** the Dockerfile enables `mod_headers` and sets `AllowOverride All`, since the
+  base image's default vhost ships with `AllowOverride None`, which would otherwise make
+  `.htaccess` silently inert. A **`.dockerignore`** also keeps `.git`, `.env`, and other
+  local-only files out of the built image in the first place.
 
-After deploying, confirm `https://your-domain/.env` returns **403/404**.
+After deploying, confirm `https://your-domain/.env` and `https://your-domain/.git/config`
+both return **403/404**.
 
 ---
 

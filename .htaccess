@@ -4,6 +4,17 @@
 # non-public files must never be downloadable over HTTP.
 # ------------------------------------------------------------------
 
+# Never list directory contents when a folder has no index file.
+Options -Indexes
+
+# Baseline security headers for the whole site (setup.php also sets these,
+# plus its own CSP, for its own response).
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "no-referrer"
+</IfModule>
+
 # Apache 2.4+
 <FilesMatch "(^\.env|\.env\..*|composer\.(json|lock)|\.gitignore|\.gitattributes)$">
     Require all denied
@@ -14,5 +25,7 @@
     Require all denied
 </FilesMatch>
 
-# Block access to internal folders that should never be served.
-RedirectMatch 404 (?i)/(\.git|vendor|scripts|tests|docs|lib|certs)(/|$)
+# Block access to internal folders that should never be served directly.
+# site/ holds view partials only meant to be include()'d by index.php (they
+# rely on variables set by theme.php/config.php first) — never a valid entrypoint.
+RedirectMatch 404 (?i)/(\.git|vendor|scripts|tests|docs|lib|certs|site)(/|$)

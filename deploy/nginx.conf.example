@@ -38,6 +38,15 @@ server {
     ssl_certificate     /etc/letsencrypt/live/your-domain.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
 
+    # nginx does not autoindex directories by default, but state it explicitly.
+    autoindex off;
+
+    # Baseline security headers for the whole site (setup.php also sets these,
+    # plus its own CSP, for its own response).
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "no-referrer" always;
+
     # -----------------------------------------------------------------------
     # Security: deny sensitive files and internal directories.
     # Regex locations are evaluated top-to-bottom, first match wins, so these
@@ -56,8 +65,9 @@ server {
         return 404;
     }
 
-    # Internal folders that must never be served over HTTP.
-    location ~* ^/(lib|scripts|tests|docs|vendor|certs)/ {
+    # Internal folders that must never be served over HTTP. site/ holds view
+    # partials only meant to be include()'d by index.php, never a valid entrypoint.
+    location ~* ^/(lib|scripts|tests|docs|vendor|certs|site)/ {
         deny all;
         return 404;
     }

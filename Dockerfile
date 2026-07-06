@@ -29,8 +29,14 @@ RUN composer install --no-dev --optimize-autoloader
 # Set proper permissions for Apache
 RUN chown -R www-data:www-data /var/www/html && chmod -R 755 /var/www/html
 
-# Enable Apache mod_rewrite if needed
-RUN a2enmod rewrite
+# Enable Apache mod_rewrite and mod_headers (required by the security headers
+# in .htaccess), and allow .htaccess to actually take effect: the base image's
+# default vhost ships with "AllowOverride None", which would otherwise make the
+# whole .htaccess (blocking .env, .git, vendor/, etc.) silently inert.
+RUN a2enmod rewrite headers \
+    && printf '<Directory /var/www/html>\n    AllowOverride All\n</Directory>\n' \
+       > /etc/apache2/conf-available/htaccess-allow.conf \
+    && a2enconf htaccess-allow
 
 # Expose port 80
 EXPOSE 80
