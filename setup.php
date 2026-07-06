@@ -190,7 +190,7 @@ function render_page(string $state): void
   <div class="top-bar" id="top"><div class="top-banner"></div></div>
   <div class="header">
     <div class="header-inner">
-      <a href="/" class="header-logo">
+      <a href="./" class="header-logo">
         <img src="https://cdn.factorio.com/assets/img/web/factorio-logo2.png" alt="Factorio" />
       </a>
     </div>
@@ -213,7 +213,7 @@ function render_page(string $state): void
           <p><strong>Important:</strong> delete <code>setup.php</code> from the server now,
              and make sure <code>.env</code> is not publicly accessible
              (the bundled <code>.htaccess</code> / nginx rules handle this).</p>
-          <p><a class="button-green download mt12" href="/">Go to the site</a></p>
+          <p><a class="button-green download mt12" href="./">Go to the site</a></p>
 <?php else: ?>
           <p>Enter your Factorio account credentials once. They will be verified against the
              official Factorio API and saved to a local <code>.env</code> file
