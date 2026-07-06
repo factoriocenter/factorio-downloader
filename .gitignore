@@ -27,8 +27,10 @@ Thumbs.db
 cacert.pem
 
 # 7) Temporary and uploads folders
+docs/superpowers/
 uploads/
 tmp/
+
 
 # ------------------------------------------------------------------
 # End of .gitignore
